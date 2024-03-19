@@ -52,6 +52,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h> // added for timer
 
 #include <errno.h>
 #include <fcntl.h>
@@ -75,23 +76,18 @@
 // Tunables
 // PINs (based on BCM numbering)
 // For wiring see CW spec: https://www.macs.hw.ac.uk/~hwloidl/Courses/F28HS/F28HS_CW2_2022.pdf
-// GPIO pin for green LED
-#define LED 13
-// GPIO pin for red LED
-#define LED2 5
-// GPIO pin for button
-#define BUTTON 19
+
+#define LED 13  // GPIO pin for green LED
+#define LED2 5  // GPIO pin for red LED
+#define BUTTON 19 // GPIO pin for button
 // =======================================================
 // delay for loop iterations (mainly), in ms
-// in mili-seconds: 0.2s
-#define DELAY 200
-// in micro-seconds: 3s
-#define TIMEOUT 3000000
+#define DELAY 200 // in mili-seconds: 0.2s
+#define TIMEOUT 3000000 // in micro-seconds: 3s
 // =======================================================
 // APP constants   ---------------------------------
-// number of colours and length of the sequence
-#define COLS 3
-#define SEQL 3
+#define COLS 3  // Number of colours 
+#define SEQL 3  // Number of the length of the sequence
 // =======================================================
 
 // generic constants
@@ -141,14 +137,14 @@ static unsigned char newChar[8] =
 
 /* Constants */
 
-static const int colors = COLS;
-static const int seqlen = SEQL;
+static const int colors = COLS; // Store the number of colours in the sequence
+static const int seqlen = SEQL; // Store the length of the sequence
 
-static char *color_names[] = {"red", "green", "blue"};
+static char *color_names[] = {"red", "green", "blue"}; // Store the names of the colours 
 
-static int *theSeq = NULL;
+static int *theSeq = NULL; // Store the secret sequence
 
-static int *seq1, *seq2, *cpy1, *cpy2;
+static int *seq1, *seq2, *cpy1, *cpy2; // Store the guess sequence and copies for use in countMatches
 
 /* --------------------------------------------------------------------------- */
 
@@ -227,6 +223,7 @@ void waitForButton(uint32_t *gpio, int button);
 /* These are just prototypes; you need to complete the code for each function */
 
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
+// Modified by AJ
 void digitalWrite(uint32_t *gpio, int pin, int value)
 {
   if (value == LOW)
@@ -240,6 +237,7 @@ void digitalWrite(uint32_t *gpio, int pin, int value)
 };
 
 /* set the @mode@ of a GPIO @pin@ to INPUT or OUTPUT; @gpio@ is the mmaped GPIO base address */
+// Modified by AJ
 void pinMode(uint32_t *gpio, int pin, int mode)
 {
   if (mode == OUTPUT)
@@ -254,6 +252,7 @@ void pinMode(uint32_t *gpio, int pin, int mode)
 
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 /* can use digitalWrite(), depending on your implementation */
+// Modified by AJ
 void writeLED(uint32_t *gpio, int led, int value)
 {
   if (value == HIGH)
@@ -267,18 +266,22 @@ void writeLED(uint32_t *gpio, int led, int value)
 };
 
 /* read a @value@ (LOW or HIGH) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
-int readButton(uint32_t *gpio, int button) {
+// Modified by AJ
+int readButton(uint32_t *gpio, int button)
+{
   return (*(gpio + 13) & (1 << button)) != 0;
 };
 
 /* wait for a button input on pin number @button@; @gpio@ is the mmaped GPIO base address */
 /* can use readButton(), depending on your implementation */
-void waitForButton(uint32_t *gpio, int button) {
-  while (readButton(gpio, button) == 0) {
+// Modified by AJ
+void waitForButton(uint32_t *gpio, int button)
+{
+  while (readButton(gpio, button) == 0)
+  {
     delay(100);
   }
 };
-
 
 /* ======================================================= */
 /* SECTION: game logic                                     */
@@ -291,33 +294,36 @@ void waitForButton(uint32_t *gpio, int button) {
 /* ********************************************************** */
 
 /* initialise the secret sequence; by default it should be a random sequence */
+// Modified by AJ
 void initSeq()
 {
   srand(time(NULL)); // Seed the random number generator
 
-  #define SEQ_LENGTH 3 // Define the constant SEQ_LENGTH with the desired value
+#define SEQ_LENGTH 3 // Define the constant SEQ_LENGTH with the desired value
+#define NUM_COLORS 3 // Define the constant NUM_COLORS with the desired value
 
-
-  for (int i = 0; i < SEQ_LENGTH; i++)
+  if (theSeq == NULL)
   {
-    int secretSeq[SEQ_LENGTH]; // Declare the secretSeq array
-
-    for (int i = 0; i < SEQ_LENGTH; i++)
+    theSeq = (int *)malloc(SEQ_LENGTH * sizeof(int)); // Allocate memory for the sequence if not allocated already
+    if (theSeq == NULL)
     {
-      #define NUM_COLORS 3 // Define the constant NUM_COLORS with the desired value
-
-      secretSeq[i] = rand() % NUM_COLORS; // Generate a random number between 0 and NUM_COLORS-1
+      fprintf(stderr, "Memory allocation failed for the secret sequence\n");
+      exit(EXIT_FAILURE);
     }
   }
 
+  for (int i = 0; i < SEQ_LENGTH; i++)
+  {
+    theSeq[i] = rand() % NUM_COLORS; // Generate a random number between 0 and NUM_COLORS-1
+  }
 };
 
-
 /* display the sequence on the terminal window, using the format from the sample run in the spec */
+// Modified by AJ
 void showSeq(int *seq)
 {
   printf("Sequence: ");
-  for (int i = 0; i < SEQ_LENGTH; i++)
+  for (int i = 0; i < SEQL; i++) // Changed SEQ_LENGTH to SEQL
   {
     printf("%d ", seq[i]);
   }
@@ -330,29 +336,74 @@ void showSeq(int *seq)
 /* counts how many entries in seq2 match entries in seq1 */
 /* returns exact and approximate matches, either both encoded in one value, */
 /* or as a pointer to a pair of values */
+// Modified by AJ
 int /* or int* */ countMatches(int *seq1, int *seq2)
 {
-  /* ***  COMPLETE the code here  ***  */
+  int exact = 0, approximate = 0;
+
+  // Logic to count exact and approximate matches
+  for (int i = 0; i < SEQL; i++)
+  {
+    if (seq1[i] == seq2[i])
+    {
+      exact++;
+    }
+    else
+    {
+      for (int j = 0; j < SEQL; j++)
+      {
+        if (seq1[i] == seq2[j])
+        {
+          approximate++;
+          break;
+        }
+      }
+    }
+  }
+
+  // Combine exact and approximate matches into one value
+  int result = (exact << 4) | approximate;
+  return result;
 }
 
 /* show the results from calling countMatches on seq1 and seq1 */
+// Modified by AJ
 void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int *seq2, /* optional, to control layout */ int lcd_format)
 {
-  /* ***  COMPLETE the code here  ***  */
+  int exact = code >> 4;
+  int approximate = code & 0x0F;
+
+  printf("Exact Matches: %d, Approximate Matches: %d\n", exact, approximate);
+
+  // Additional logic to display matches, possibly on LCD
+  // Modify this part based on your requirements
 }
 
 /* parse an integer value as a list of digits, and put them into @seq@ */
 /* needed for processing command-line with options -s or -u            */
+// Modified by AJ
 void readSeq(int *seq, int val)
 {
-  /* ***  COMPLETE the code here  ***  */
+  // Extract digits from val and store them in seq
+  for (int i = SEQL - 1; i >= 0; i--)
+  {
+    seq[i] = val % 10;
+    val /= 10;
+  }
 }
 
 /* read a guess sequence fron stdin and store the values in arr */
 /* only needed for testing the game logic, without button input */
+// Modified by AJ
 int readNum(int max)
 {
-  /* ***  COMPLETE the code here  ***  */
+  int num;
+
+  // Read a number from stdin
+  printf("Enter a number between 0 and %d: ", max);
+  scanf("%d", &num);
+
+  return num;
 }
 
 /* ======================================================= */
@@ -370,22 +421,46 @@ static uint64_t startT, stopT;
 
 /* you may need this function in timer_handler() below  */
 /* use the libc fct gettimeofday() to implement it      */
+// Modified by AJ
 uint64_t timeInMicroseconds()
 {
   /* ***  COMPLETE the code here  ***  */
+  struct timeval currentTime;
+  gettimeofday(&currentTime, NULL);
+  return ((unsigned long long)currentTime.tv_sec * 1000000ULL) + (unsigned long long)currentTime.tv_usec;
 }
 
 /* this should be the callback, triggered via an interval timer, */
 /* that is set-up through a call to sigaction() in the main fct. */
+// Modified by AJ
 void timer_handler(int signum)
 {
   /* ***  COMPLETE the code here  ***  */
+  printf("Caught timer signal: %d\n", signum);
 }
 
 /* initialise time-stamps, setup an interval timer, and install the timer_handler callback */
+// Modified by AJ, incomplete!
 void initITimer(uint64_t timeout)
 {
   /* ***  COMPLETE the code here  ***  */
+
+  struct sigaction sa;
+  struct itimerval timer;
+
+  // Set up the structure to specify the action to be taken when the timer expires
+  sa.sa_handler = &timer_handler;
+  sa.sa_flags = SA_RESTART;
+  sigaction(SIGALRM, &sa, NULL);
+
+  // Set up the timer
+  timer.it_value.tv_sec = timeout / 1000000;
+  timer.it_value.tv_usec = timeout % 1000000;
+  timer.it_interval.tv_sec = 0;
+  timer.it_interval.tv_usec = 0;
+
+  // Start the timer
+  setitimer(ITIMER_REAL, &timer, NULL);
 }
 
 /* ======================================================= */
@@ -701,9 +776,17 @@ void lcdPuts(struct lcdDataStruct *lcd, const char *string)
 /* interface on top of the low-level pin I/O code */
 
 /* blink the led on pin @led@, @c@ times */
+// Modified by AJ
 void blinkN(uint32_t *gpio, int led, int c)
 {
   /* ***  COMPLETE the code here  ***  */
+  for (int i = 0; i < c; i++)
+  {
+    writeLED(gpio, led, HIGH);
+    delay(DELAY);
+    writeLED(gpio, led, LOW);
+    delay(DELAY);
+  }
 }
 
 /* ======================================================= */
@@ -859,6 +942,9 @@ int main(int argc, char *argv[])
   // constants for RPi2
   gpiobase = 0x3F200000;
 
+  //const uint32_t RPI3_GPIO_BASE = 0x3F200000; // added for fact checking
+  
+
   // -----------------------------------------------------------------------------
   // memory mapping
   // Open the master /dev/memory device
@@ -981,6 +1067,14 @@ int main(int argc, char *argv[])
   fprintf(stderr, "Printing welcome message on the LCD display ...\n");
   /* ***  COMPLETE the code here  ***  */
 
+
+  /*-------------------------------------------------------------------------------------*/
+  LCDWriteString(lcd, "Welcome to MasterMind", 20);
+  delay(2000);
+  lcdClear(lcd);
+
+  /*-------------------------------------------------------------------------------------*/
+
   /* initialise the secret sequence */
   if (!opt_s)
     initSeq();
@@ -1010,6 +1104,8 @@ int main(int argc, char *argv[])
   if (found)
   {
     /* ***  COMPLETE the code here  ***  */
+    fprintf(stdout, "Sequence found\n");
+    LCDWriteString(lcd, "Sequence found", 16);
   }
   else
   {
