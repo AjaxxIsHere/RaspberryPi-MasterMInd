@@ -77,17 +77,17 @@
 // PINs (based on BCM numbering)
 // For wiring see CW spec: https://www.macs.hw.ac.uk/~hwloidl/Courses/F28HS/F28HS_CW2_2022.pdf
 
-#define LED 13  // GPIO pin for green LED
-#define LED2 5  // GPIO pin for red LED
-#define BUTTON 19 // GPIO pin for button
+#define GREEN_LED 13 // GPIO pin for green LED
+#define RED_LED 5    // GPIO pin for red LED
+#define BUTTON 19    // GPIO pin for button
 // =======================================================
 // delay for loop iterations (mainly), in ms
-#define DELAY 200 // in mili-seconds: 0.2s
+#define DELAY 200       // in mili-seconds: 0.2s
 #define TIMEOUT 3000000 // in micro-seconds: 3s
 // =======================================================
 // APP constants   ---------------------------------
-#define COLS 3  // Number of colours 
-#define SEQL 3  // Number of the length of the sequence
+#define COLS 3 // Number of colours
+#define SEQL 3 // Number of the length of the sequence
 // =======================================================
 
 // generic constants
@@ -103,8 +103,8 @@
 #define INPUT 0
 #define OUTPUT 1
 
-#define LOW 0
-#define HIGH 1
+#define OFF 0
+#define ON 1
 
 // =======================================================
 // Wiring (see inlined initialisation routine)
@@ -140,7 +140,7 @@ static unsigned char newChar[8] =
 static const int colors = COLS; // Store the number of colours in the sequence
 static const int seqlen = SEQL; // Store the length of the sequence
 
-static char *color_names[] = {"red", "green", "blue"}; // Store the names of the colours 
+static char *color_names[] = {"red", "green", "blue"}; // Store the names of the colours
 
 static int *theSeq = NULL; // Store the secret sequence
 
@@ -226,7 +226,7 @@ void waitForButton(uint32_t *gpio, int button);
 // Modified by AJ
 void digitalWrite(uint32_t *gpio, int pin, int value)
 {
-  if (value == LOW)
+  if (value == OFF)
   {
     *(gpio + 10) = 1 << pin;
   }
@@ -255,7 +255,7 @@ void pinMode(uint32_t *gpio, int pin, int mode)
 // Modified by AJ
 void writeLED(uint32_t *gpio, int led, int value)
 {
-  if (value == HIGH)
+  if (value == ON)
   {
     *gpio |= 1 << led;
   }
@@ -279,7 +279,7 @@ void waitForButton(uint32_t *gpio, int button)
 {
   while (readButton(gpio, button) == 0)
   {
-    delay(100);
+    // Do nothing and wait for the button to be pressed
   }
 };
 
@@ -295,16 +295,13 @@ void waitForButton(uint32_t *gpio, int button)
 
 /* initialise the secret sequence; by default it should be a random sequence */
 // Modified by AJ
-void initSeq()
+void inititalizeSeq()
 {
   srand(time(NULL)); // Seed the random number generator
 
-#define SEQ_LENGTH 3 // Define the constant SEQ_LENGTH with the desired value
-#define NUM_COLORS 3 // Define the constant NUM_COLORS with the desired value
-
   if (theSeq == NULL)
   {
-    theSeq = (int *)malloc(SEQ_LENGTH * sizeof(int)); // Allocate memory for the sequence if not allocated already
+    theSeq = (int *)malloc(SEQL * sizeof(int)); // Allocate memory for the sequence if not allocated already
     if (theSeq == NULL)
     {
       fprintf(stderr, "Memory allocation failed for the secret sequence\n");
@@ -312,9 +309,9 @@ void initSeq()
     }
   }
 
-  for (int i = 0; i < SEQ_LENGTH; i++)
+  for (int i = 0; i < SEQL; i++)
   {
-    theSeq[i] = rand() % NUM_COLORS; // Generate a random number between 0 and NUM_COLORS-1
+    theSeq[i] = rand() % COLS; // Generate a random number between 0 and COLS-1
   }
 };
 
@@ -432,7 +429,7 @@ uint64_t timeInMicroseconds()
 
 /* this should be the callback, triggered via an interval timer, */
 /* that is set-up through a call to sigaction() in the main fct. */
-// Modified by AJ
+// Modified by AJ, incomplete!
 void timer_handler(int signum)
 {
   /* ***  COMPLETE the code here  ***  */
@@ -443,24 +440,28 @@ void timer_handler(int signum)
 // Modified by AJ, incomplete!
 void initITimer(uint64_t timeout)
 {
-  /* ***  COMPLETE the code here  ***  */
+  // struct itimerval timer;
+  // // Set up the timer
+  // timer.it_value.tv_sec = timeout / 1000000; // seconds
+  // timer.it_value.tv_usec = timeout % 1000000; // microseconds
+  // timer.it_interval.tv_sec = timeout / 1000000; // repeat interval seconds
+  // timer.it_interval.tv_usec = timeout % 1000000; // repeat interval microseconds
 
-  struct sigaction sa;
-  struct itimerval timer;
+  // // Install timer_handler as the signal handler for SIGVTALRM
+  // struct sigaction sa;
+  // sa.sa_handler = &timer_handler;
+  // sa.sa_flags = SA_RESTART;
+  // sigfillset(&sa.sa_mask);
+  // if (sigaction(SIGVTALRM, &sa, NULL) == -1) {
+  //     perror("Error: cannot handle SIGVTALRM"); // Handle error
+  //     exit(EXIT_FAILURE);
+  // }
 
-  // Set up the structure to specify the action to be taken when the timer expires
-  sa.sa_handler = &timer_handler;
-  sa.sa_flags = SA_RESTART;
-  sigaction(SIGALRM, &sa, NULL);
-
-  // Set up the timer
-  timer.it_value.tv_sec = timeout / 1000000;
-  timer.it_value.tv_usec = timeout % 1000000;
-  timer.it_interval.tv_sec = 0;
-  timer.it_interval.tv_usec = 0;
-
-  // Start the timer
-  setitimer(ITIMER_REAL, &timer, NULL);
+  // // Configure the timer to expire after the specified time
+  // if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
+  //     perror("Error: cannot start virtual timer"); // Handle error
+  //     exit(EXIT_FAILURE);
+  // }
 }
 
 /* ======================================================= */
@@ -512,6 +513,14 @@ void delay(unsigned int howLong)
 
   nanosleep(&sleeper, &dummy);
 }
+
+void waitForButton(uint32_t *gpio, int button)
+{
+  while (readButton(gpio, button) == 0)
+  {
+    delay(100);
+  }
+};
 
 /* From wiringPi code; comment by Gordon Henderson
  * delayMicroseconds:
@@ -782,9 +791,9 @@ void blinkN(uint32_t *gpio, int led, int c)
   /* ***  COMPLETE the code here  ***  */
   for (int i = 0; i < c; i++)
   {
-    writeLED(gpio, led, HIGH);
+    writeLED(gpio, led, ON);
     delay(DELAY);
-    writeLED(gpio, led, LOW);
+    writeLED(gpio, led, OFF);
     delay(DELAY);
   }
 }
@@ -803,7 +812,7 @@ int main(int argc, char *argv[])
   int c, d, buttonPressed, rel, foo;
   int *attSeq;
 
-  int pinLED = LED, pin2LED2 = LED2, pinButton = BUTTON;
+  int greenLED = GREEN_LED, redLED = RED_LED, pinButton = BUTTON;
   int fSel, shift, pin, clrOff, setOff, off, res;
   int fd;
 
@@ -942,8 +951,7 @@ int main(int argc, char *argv[])
   // constants for RPi2
   gpiobase = 0x3F200000;
 
-  //const uint32_t RPI3_GPIO_BASE = 0x3F200000; // added for fact checking
-  
+  // const uint32_t RPI3_GPIO_BASE = 0x3F200000; // added for fact checking
 
   // -----------------------------------------------------------------------------
   // memory mapping
@@ -959,8 +967,17 @@ int main(int argc, char *argv[])
 
   // -------------------------------------------------------
   // Configuration of LED and BUTTON
-
+  // Modified by AJ
   /* ***  COMPLETE the code here  ***  */
+  pinMode(gpio, greenLED, OUTPUT);
+  pinMode(gpio, redLED, OUTPUT);
+  pinMode(gpio, pinButton, INPUT);
+  pinMode(gpio, STRB_PIN, OUTPUT);
+  pinMode(gpio, RS_PIN, OUTPUT);
+  pinMode(gpio, DATA0_PIN, OUTPUT);
+  pinMode(gpio, DATA1_PIN, OUTPUT);
+  pinMode(gpio, DATA2_PIN, OUTPUT);
+  pinMode(gpio, DATA3_PIN, OUTPUT);
 
   // -------------------------------------------------------
   // INLINED version of lcdInit (can only deal with one LCD attached to the RPi):
@@ -1065,11 +1082,10 @@ int main(int argc, char *argv[])
   // -----------------------------------------------------------------------------
   // Start of game
   fprintf(stderr, "Printing welcome message on the LCD display ...\n");
-  /* ***  COMPLETE the code here  ***  */
-
 
   /*-------------------------------------------------------------------------------------*/
-  LCDWriteString(lcd, "Welcome to MasterMind", 20);
+  /* ***  COMPLETE the code here  ***  */
+  LCDWriteString(lcd, "Welcome!", 20);
   delay(2000);
   lcdClear(lcd);
 
@@ -1077,8 +1093,8 @@ int main(int argc, char *argv[])
 
   /* initialise the secret sequence */
   if (!opt_s)
-    initSeq();
-  if (debug)
+    inititalizeSeq();
+  if (1)
     showSeq(theSeq);
 
   // optionally one of these 2 calls:
@@ -1086,20 +1102,76 @@ int main(int argc, char *argv[])
   // waitForButton (gpio, pinButton) ;
 
   // -----------------------------------------------------------------------------
+
+  /* ******************************************************* */
+  /* ***  COMPLETE the code here  ***                        */
+  /* this needs to implement the main loop of the game:      */
+  /* check for button presses and count them                 */
+  /* store the input numbers in the sequence @attSeq@        */
+  /* compute the match with the secret sequence, and         */
+  /* show the result                                         */
+  /* see CW spec for details                                 */
+  /* ******************************************************* */
   // +++++ main loop
   while (!found)
   {
     attempts++;
 
-    /* ******************************************************* */
-    /* ***  COMPLETE the code here  ***                        */
-    /* this needs to implement the main loop of the game:      */
-    /* check for button presses and count them                 */
-    /* store the input numbers in the sequence @attSeq@        */
-    /* compute the match with the secret sequence, and         */
-    /* show the result                                         */
-    /* see CW spec for details                                 */
-    /* ******************************************************* */
+    // Clear the LCD display
+    lcdClear(lcd);
+    
+    // Blink red LED five times to indicate the start of a new round
+    blinkN(gpio, redLED, 5);
+
+    // Read player's guess sequence by the number of times the button is pressed in a certain time limit
+    for (i = 0; i < seqlen; i++)
+    {
+      // Reset the buttonPressed variable
+      buttonPressed = 0;
+
+      // Start the timer
+      gettimeofday(&t1, NULL);
+
+      // Wait for the button to be pressed
+      while (!buttonPressed)
+      {
+        // Check if the button is pressed and blink red led once
+        if (readButton(gpio, pinButton))
+        {
+          buttonPressed = 1;
+          writeLED(gpio, redLED, ON);
+          delay(DELAY);
+          writeLED(gpio, redLED, OFF);
+        }
+
+        // Check if the time limit has been reached
+        gettimeofday(&t2, NULL);
+        t = (t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec);
+        if (t >= TIMEOUT)
+        {
+          timed_out = 1;
+          break;
+        }
+      }
+
+      // Check if the time limit has been reached
+      if (timed_out)
+      {
+        break;
+      }
+
+      // Store the number of button presses in the guess sequence
+      attSeq[i] = i;
+    }
+
+    // blink the green led in response to how many times the user pressed the button
+    blinkN(gpio, greenLED, i);
+
+    
+
+
+    
+    
   }
   if (found)
   {
