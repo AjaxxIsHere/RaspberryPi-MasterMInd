@@ -55,6 +55,12 @@ int failure (int fatal, const char *message, ...);
 /* this version needs gpio as argument, because it is in a separate file */
 void digitalWrite (uint32_t *gpio, int pin, int value) {
   /* ***  COMPLETE the code here, using inline Assembler  ***  */
+  if (value == ON) {
+    // set the pin
+    
+  } else {
+    // clear the pin
+  }
 }
 
 // adapted from setPinMode
