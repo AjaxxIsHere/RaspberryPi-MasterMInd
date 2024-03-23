@@ -63,7 +63,7 @@
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <bits/getopt_core.h>
-#include <asm-generic/fcntl.h>
+//#include <asm-generic/fcntl.h>
 
 /* --------------------------------------------------------------------------- */
 /* Config settings */
@@ -112,7 +112,7 @@
 #define STRB_PIN 24
 #define RS_PIN 25
 #define DATA0_PIN 23
-#define DATA1_PIN 10
+#define DATA1_PIN 18
 #define DATA2_PIN 27
 #define DATA3_PIN 22
 
@@ -269,6 +269,7 @@ void writeLED(uint32_t *gpio, int led, int value)
 // Modified by AJ
 int readButton(uint32_t *gpio, int button)
 {
+  fprintf(stdout, "Button pressed!\n");
   return (*(gpio + 13) & (1 << button)) != 0;
 };
 
@@ -440,28 +441,28 @@ void timer_handler(int signum)
 // Modified by AJ, incomplete!
 void initITimer(uint64_t timeout)
 {
-  // struct itimerval timer;
-  // // Set up the timer
-  // timer.it_value.tv_sec = timeout / 1000000; // seconds
-  // timer.it_value.tv_usec = timeout % 1000000; // microseconds
-  // timer.it_interval.tv_sec = timeout / 1000000; // repeat interval seconds
-  // timer.it_interval.tv_usec = timeout % 1000000; // repeat interval microseconds
+   struct itimerval timer;
+   // Set up the timer
+   timer.it_value.tv_sec = timeout / 1000000; // seconds
+   timer.it_value.tv_usec = timeout % 1000000; // microseconds
+   timer.it_interval.tv_sec = timeout / 1000000; // repeat interval seconds
+   timer.it_interval.tv_usec = timeout % 1000000; // repeat interval microseconds
 
-  // // Install timer_handler as the signal handler for SIGVTALRM
-  // struct sigaction sa;
-  // sa.sa_handler = &timer_handler;
-  // sa.sa_flags = SA_RESTART;
-  // sigfillset(&sa.sa_mask);
-  // if (sigaction(SIGVTALRM, &sa, NULL) == -1) {
-  //     perror("Error: cannot handle SIGVTALRM"); // Handle error
-  //     exit(EXIT_FAILURE);
-  // }
+   // Install timer_handler as the signal handler for SIGVTALRM
+   struct sigaction sa;
+   sa.sa_handler = &timer_handler;
+   sa.sa_flags = SA_RESTART;
+   sigfillset(&sa.sa_mask);
+   if (sigaction(SIGVTALRM, &sa, NULL) == -1) {
+       perror("Error: cannot handle SIGVTALRM"); // Handle error
+       exit(EXIT_FAILURE);
+   }
 
-  // // Configure the timer to expire after the specified time
-  // if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
-  //     perror("Error: cannot start virtual timer"); // Handle error
-  //     exit(EXIT_FAILURE);
-  // }
+   // Configure the timer to expire after the specified time
+   if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
+       perror("Error: cannot start virtual timer"); // Handle error
+       exit(EXIT_FAILURE);
+   }
 }
 
 /* ======================================================= */
@@ -514,13 +515,13 @@ void delay(unsigned int howLong)
   nanosleep(&sleeper, &dummy);
 }
 
-void waitForButton(uint32_t *gpio, int button)
-{
-  while (readButton(gpio, button) == 0)
-  {
-    delay(100);
-  }
-};
+//void waitForButton(uint32_t *gpio, int button)
+//{
+  //while (readButton(gpio, button) == 0)
+  //{
+    //delay(100);
+  //}
+//};
 
 /* From wiringPi code; comment by Gordon Henderson
  * delayMicroseconds:
@@ -791,10 +792,10 @@ void blinkN(uint32_t *gpio, int led, int c)
   /* ***  COMPLETE the code here  ***  */
   for (int i = 0; i < c; i++)
   {
-    writeLED(gpio, led, ON);
-    delay(DELAY);
-    writeLED(gpio, led, OFF);
-    delay(DELAY);
+    digitalWrite(gpio, led, ON);
+    delay(500);
+    digitalWrite(gpio, led, OFF);
+    delay(500);
   }
 }
 
@@ -1085,7 +1086,7 @@ int main(int argc, char *argv[])
 
   /*-------------------------------------------------------------------------------------*/
   /* ***  COMPLETE the code here  ***  */
-  LCDWriteString(lcd, "Welcome!", 20);
+  lcdPuts(lcd, "Welcome!");
   delay(2000);
   lcdClear(lcd);
 
@@ -1122,6 +1123,7 @@ int main(int argc, char *argv[])
     
     // Blink red LED five times to indicate the start of a new round
     blinkN(gpio, redLED, 5);
+    delay(2000);
 
     // Read player's guess sequence by the number of times the button is pressed in a certain time limit
     for (i = 0; i < seqlen; i++)
@@ -1168,8 +1170,7 @@ int main(int argc, char *argv[])
     blinkN(gpio, greenLED, i);
 
     
-
-
+    
     
     
   }
@@ -1177,7 +1178,7 @@ int main(int argc, char *argv[])
   {
     /* ***  COMPLETE the code here  ***  */
     fprintf(stdout, "Sequence found\n");
-    LCDWriteString(lcd, "Sequence found", 16);
+    lcdPuts(lcd, "sequence found!");
   }
   else
   {
