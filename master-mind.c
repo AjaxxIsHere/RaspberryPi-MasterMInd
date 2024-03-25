@@ -63,7 +63,7 @@
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <bits/getopt_core.h>
-//#include <asm-generic/fcntl.h>
+// #include <asm-generic/fcntl.h>
 
 /* --------------------------------------------------------------------------- */
 /* Config settings */
@@ -206,7 +206,7 @@ static int timed_out = 0;
 
 int failure(int fatal, const char *message, ...);
 void waitForEnter(void);
-void waitForButton(uint32_t *gpio, int button);
+int waitForButton(uint32_t *gpio, int button);
 
 /* ======================================================= */
 /* SECTION: hardware interface (LED, button, LCD display)  */
@@ -265,24 +265,56 @@ void writeLED(uint32_t *gpio, int led, int value)
   }
 };
 
-/* read a @value@ (LOW or HIGH) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
+/* read a @value@ (OFF or ON) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
-int readButton(uint32_t *gpio, int button)
+int readButton(uint32_t *gpio, int pin)
 {
-  fprintf(stdout, "Button pressed!\n");
-  return (*(gpio + 13) & (1 << button)) != 0;
-};
+  if ((pin & 0xFFFFFFC0) == 0)
+  {
+    if ((*(gpio + 13) & (1 << pin)) == 0)
+    {
+      return 1;
+    }
+    else
+    {
+      return 0;
+    }
+  }
+  else
+  {
+    fprintf(stderr, "Error: Invalid pin number\n");
+    exit(EXIT_FAILURE);
+  }
+}
 
 /* wait for a button input on pin number @button@; @gpio@ is the mmaped GPIO base address */
 /* can use readButton(), depending on your implementation */
 // Modified by AJ
-void waitForButton(uint32_t *gpio, int button)
+int waitForButton(uint32_t *gpio, int button)
 {
-  while (readButton(gpio, button) == 0)
+  // fprintf(stderr, "int state = readButton(gpio, button);Waiting for button\n");
+  // int state = readButton(gpio, button);
+  while (1)
   {
-    // Do nothing and wait for the button to be pressed
+    int state = readButton(gpio, button);
+
+    fprintf(stderr, "Button state: %d\n", state);
+    if (state == OFF)
+    {
+      fprintf(stderr, "Button pressed\n");
+      return 1;
+      break;
+    }
+    else
+    {
+      // state = ON;
+      struct timespec sleeper, dummy;
+      sleeper.tv_sec = 0;
+      sleeper.tv_nsec = 100000000;
+      nanosleep(&sleeper, &dummy);
+    }
   }
-};
+}
 
 /* ======================================================= */
 /* SECTION: game logic                                     */
@@ -310,7 +342,7 @@ void inititalizeSeq()
     }
   }
 
-  for (int i = 0; i < SEQL; i++)
+  for (int i = 1; i <= SEQL; i++)
   {
     theSeq[i] = rand() % COLS; // Generate a random number between 0 and COLS-1
   }
@@ -321,7 +353,7 @@ void inititalizeSeq()
 void showSeq(int *seq)
 {
   printf("Sequence: ");
-  for (int i = 0; i < SEQL; i++) // Changed SEQ_LENGTH to SEQL
+  for (int i = 1; i <= SEQL; i++) // Changed SEQ_LENGTH to SEQL
   {
     printf("%d ", seq[i]);
   }
@@ -441,28 +473,30 @@ void timer_handler(int signum)
 // Modified by AJ, incomplete!
 void initITimer(uint64_t timeout)
 {
-   struct itimerval timer;
-   // Set up the timer
-   timer.it_value.tv_sec = timeout / 1000000; // seconds
-   timer.it_value.tv_usec = timeout % 1000000; // microseconds
-   timer.it_interval.tv_sec = timeout / 1000000; // repeat interval seconds
-   timer.it_interval.tv_usec = timeout % 1000000; // repeat interval microseconds
+  struct itimerval timer;
+  // Set up the timer
+  timer.it_value.tv_sec = timeout / 1000000;     // seconds
+  timer.it_value.tv_usec = timeout % 1000000;    // microseconds
+  timer.it_interval.tv_sec = timeout / 1000000;  // repeat interval seconds
+  timer.it_interval.tv_usec = timeout % 1000000; // repeat interval microseconds
 
-   // Install timer_handler as the signal handler for SIGVTALRM
-   struct sigaction sa;
-   sa.sa_handler = &timer_handler;
-   sa.sa_flags = SA_RESTART;
-   sigfillset(&sa.sa_mask);
-   if (sigaction(SIGVTALRM, &sa, NULL) == -1) {
-       perror("Error: cannot handle SIGVTALRM"); // Handle error
-       exit(EXIT_FAILURE);
-   }
+  // Install timer_handler as the signal handler for SIGVTALRM
+  struct sigaction sa;
+  sa.sa_handler = &timer_handler;
+  sa.sa_flags = SA_RESTART;
+  sigfillset(&sa.sa_mask);
+  if (sigaction(SIGVTALRM, &sa, NULL) == -1)
+  {
+    perror("Error: cannot handle SIGVTALRM"); // Handle error
+    exit(EXIT_FAILURE);
+  }
 
-   // Configure the timer to expire after the specified time
-   if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
-       perror("Error: cannot start virtual timer"); // Handle error
-       exit(EXIT_FAILURE);
-   }
+  // Configure the timer to expire after the specified time
+  if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1)
+  {
+    perror("Error: cannot start virtual timer"); // Handle error
+    exit(EXIT_FAILURE);
+  }
 }
 
 /* ======================================================= */
@@ -515,12 +549,12 @@ void delay(unsigned int howLong)
   nanosleep(&sleeper, &dummy);
 }
 
-//void waitForButton(uint32_t *gpio, int button)
+// void waitForButton(uint32_t *gpio, int button)
 //{
-  //while (readButton(gpio, button) == 0)
-  //{
-    //delay(100);
-  //}
+// while (readButton(gpio, button) == 0)
+//{
+// delay(100);
+//}
 //};
 
 /* From wiringPi code; comment by Gordon Henderson
@@ -1099,8 +1133,8 @@ int main(int argc, char *argv[])
     showSeq(theSeq);
 
   // optionally one of these 2 calls:
-  // waitForEnter () ;
-  // waitForButton (gpio, pinButton) ;
+  // waitForEnter();
+  // waitForButton(gpio, pinButton);
 
   // -----------------------------------------------------------------------------
 
@@ -1114,66 +1148,35 @@ int main(int argc, char *argv[])
   /* see CW spec for details                                 */
   /* ******************************************************* */
   // +++++ main loop
-  while (!found)
+  //
+
+  // Blink the green LED to indicate the start of a new attempt
+
+  while (!found && attempts < 10)
   {
-    attempts++;
+    //blinkN(gpio, redLED, 2);
+    digitalWrite(gpio, greenLED, OFF);
 
-    // Clear the LCD display
-    lcdClear(lcd);
-    
-    // Blink red LED five times to indicate the start of a new round
-    blinkN(gpio, redLED, 5);
-    delay(2000);
+    // Wait for the button to be pressed
+    waitForButton(gpio, pinButton);
 
-    // Read player's guess sequence by the number of times the button is pressed in a certain time limit
-    for (i = 0; i < seqlen; i++)
+    // Read the button press
+    buttonPressed = waitForButton(gpio, pinButton);
+    printf("Button pressed: %d\n", buttonPressed);
+
+    // If the button is pressed, read the number and store it in the sequence
+    if (buttonPressed == 1)
     {
-      // Reset the buttonPressed variable
-      buttonPressed = 0;
-
-      // Start the timer
-      gettimeofday(&t1, NULL);
-
-      // Wait for the button to be pressed
-      while (!buttonPressed)
-      {
-        // Check if the button is pressed and blink red led once
-        if (readButton(gpio, pinButton))
-        {
-          buttonPressed = 1;
-          writeLED(gpio, redLED, ON);
-          delay(DELAY);
-          writeLED(gpio, redLED, OFF);
-        }
-
-        // Check if the time limit has been reached
-        gettimeofday(&t2, NULL);
-        t = (t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec);
-        if (t >= TIMEOUT)
-        {
-          timed_out = 1;
-          break;
-        }
-      }
-
-      // Check if the time limit has been reached
-      if (timed_out)
-      {
-        break;
-      }
-
-      // Store the number of button presses in the guess sequence
-      attSeq[i] = i;
+      digitalWrite(gpio, greenLED, ON);
+      delay(5000);
     }
-
-    // blink the green led in response to how many times the user pressed the button
-    blinkN(gpio, greenLED, i);
-
-    
-    
-    
-    
+    else
+    {
+      // digitalWrite(gpio, greenLED, OFF);
+      // delay(5000);
+    }
   }
+
   if (found)
   {
     /* ***  COMPLETE the code here  ***  */
