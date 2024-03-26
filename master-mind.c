@@ -273,11 +273,11 @@ int readButton(uint32_t *gpio, int pin)
   {
     if ((*(gpio + 13) & (1 << pin)) == 0)
     {
-      return 1;
+      return OFF;
     }
     else
     {
-      return 0;
+      return ON;
     }
   }
   else
@@ -299,7 +299,7 @@ int waitForButton(uint32_t *gpio, int button)
     int state = readButton(gpio, button);
 
     fprintf(stderr, "Button state: %d\n", state);
-    if (state == OFF)
+    if (state == ON)
     {
       fprintf(stderr, "Button pressed\n");
       return 1;
@@ -312,6 +312,7 @@ int waitForButton(uint32_t *gpio, int button)
       sleeper.tv_sec = 0;
       sleeper.tv_nsec = 100000000;
       nanosleep(&sleeper, &dummy);
+      break;
     }
   }
 }
@@ -344,7 +345,7 @@ void inititalizeSeq()
 
   for (int i = 1; i <= SEQL; i++)
   {
-    theSeq[i] = rand() % COLS; // Generate a random number between 0 and COLS-1
+    theSeq[i] = rand() % 3 + 1; // Generate a random number between 1 and 3
   }
 };
 
@@ -367,7 +368,8 @@ void showSeq(int *seq)
 /* returns exact and approximate matches, either both encoded in one value, */
 /* or as a pointer to a pair of values */
 // Modified by AJ
-int /* or int* */ countMatches(int *seq1, int *seq2)
+int /* or int* */ 
+countMatches(int *seq1, int *seq2)
 {
   int exact = 0, approximate = 0;
 
@@ -548,14 +550,6 @@ void delay(unsigned int howLong)
 
   nanosleep(&sleeper, &dummy);
 }
-
-// void waitForButton(uint32_t *gpio, int button)
-//{
-// while (readButton(gpio, button) == 0)
-//{
-// delay(100);
-//}
-//};
 
 /* From wiringPi code; comment by Gordon Henderson
  * delayMicroseconds:
@@ -1151,30 +1145,97 @@ int main(int argc, char *argv[])
   //
 
   // Blink the green LED to indicate the start of a new attempt
+  digitalWrite(gpio, greenLED, OFF);
+  digitalWrite(gpio, redLED, OFF);
+
 
   while (!found && attempts < 10)
   {
-    //blinkN(gpio, redLED, 2);
-    digitalWrite(gpio, greenLED, OFF);
+    // //blinkN(gpio, redLED, 2);
+    // digitalWrite(gpio, greenLED, OFF);
 
-    // Wait for the button to be pressed
-    waitForButton(gpio, pinButton);
+    // // Wait for the button to be pressed
+    // waitForButton(gpio, pinButton);
 
-    // Read the button press
-    buttonPressed = waitForButton(gpio, pinButton);
-    printf("Button pressed: %d\n", buttonPressed);
+    // // Read the button press
+    // buttonPressed = waitForButton(gpio, pinButton);
+    // printf("Button pressed: %d\n", buttonPressed);
 
-    // If the button is pressed, read the number and store it in the sequence
-    if (buttonPressed == 1)
+    // // If the button is pressed, read the number and store it in the sequence
+    // if (buttonPressed == 1)
+    // {
+    //   digitalWrite(gpio, greenLED, ON);
+    //   delay(5000);
+    // }
+    // else
+    // {
+    //   // digitalWrite(gpio, greenLED, OFF);
+    //   // delay(5000);
+    // }
+    int turn = 0;
+
+    printf("Round %d!!!\n", attempts += 1);
+
+    while (1)
     {
-      digitalWrite(gpio, greenLED, ON);
-      delay(5000);
+      printf("Turn: %d\n", turn += 1);
+      delay(3000);
+      printf("Enter a sequence of %d numbers\n", SEQL);
+      // Time window of 7 seconds
+      time_t startTime = time(NULL);
+      time_t endTime = startTime + 7;
+
+      // Count of button presses
+      int buttonPressCount = 0;
+
+      // Blink red when time window ends
+      while (time(NULL) < endTime)
+      {
+        // Wait for the button to be pressed
+        if (waitForButton(gpio, pinButton) == 1)
+        {
+          buttonPressCount++;
+          delay(500);
+        }
+        if (buttonPressCount >= 3)
+        {
+          buttonPressCount = 3;
+          break;
+        }
+      }
+      printf("Button pressed %d times\n", buttonPressCount);
+      digitalWrite(gpio, redLED, ON);
+      delay(2000);
+      digitalWrite(gpio, redLED, OFF);
+
+      // Blink the number of times the button was pressed on green
+      for (int i = 0; i < buttonPressCount; i++)
+      {
+        // Blink green LED
+        blinkN(gpio, greenLED, 1);
+      }
+
+      // Store the number of button presses in attSeq
+      attSeq[turn] = buttonPressCount;
+      // Repeat for a sequence of 3
+      if (turn <= 3)
+      {
+        // Delay before starting the next attempt
+        delay(2000);
+      }
+      if (turn == 3)
+      {
+        printf("%d\n", attSeq[1]);
+        printf("%d\n", attSeq[2]);
+        printf("%d\n", attSeq[3]);
+
+        blinkN(gpio, redLED, 2);
+        break;
+      }
     }
-    else
-    {
-      // digitalWrite(gpio, greenLED, OFF);
-      // delay(5000);
-    }
+
+    // Compare the sequence with the secret sequence
+    code = countMatches(theSeq, attSeq);
   }
 
   if (found)
