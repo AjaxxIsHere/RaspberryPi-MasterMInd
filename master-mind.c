@@ -368,40 +368,44 @@ void showSeq(int *seq)
 /* returns exact and approximate matches, either both encoded in one value, */
 /* or as a pointer to a pair of values */
 // Modified by Leressa
-int /* or int* */ countMatches(int *seq1, int *seq2)
-{
 
-  int exact = 0, approximate = 0;
+// int /* or int* */ countMatches(int *seq1, int *seq2)
+// {
 
-  for (int j = 0; j < SEQL; j++ ) {
-    printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
-  }
+//   int exact = 0, approximate = 0;
 
-  // Logic to count exact and approximate matches
-  for (int i = 0; i < SEQL; i++)
-  {
+//   for (int j = 0; j < SEQL; j++ ) {
+//     printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
+//   }
+
+//   // Logic to count exact and approximate matches
+//   for (int i = 0; i < SEQL; i++)
+//   {
     
-    if (seq1[i] == seq2[i])
-    {
-      exact++;
-    }
-    else
-    {
-      for (int j = 0; j < SEQL; j++)
-      {
-        if (seq2[i] == seq1[j] && seq1[j] != seq2[j])
-        {
-          approximate++;
-          break;
-        }
-      }
-    }
-  }
+//     if (seq1[i] == seq2[i])
+//     {
+//       exact++;
+//     }
+//     else
+//     {
+//       for (int j = 0; j < SEQL; j++)
+//       {
+//         if (seq2[i] == seq1[j] && seq1[j] != seq2[j])
+//         {
+//           approximate++;
+//           break;
+//         }
+//       }
+//     }
+//   }
 
-  // Combine exact and approximate matches into one value
-  int result = (exact << 4) | approximate;
-  return result;
-}
+//   // Combine exact and approximate matches into one value
+//   int result = (exact << 4) | approximate;
+//   return result;
+// }
+
+//matches in assembly
+extern int matches(int *seq1, int *seq2);
 
 /* show the results from calling countMatches on seq1 and seq1 */
 // Modified by Leressa
@@ -1225,7 +1229,12 @@ int main(int argc, char *argv[])
     }
 
     // Compare the sequence with the secret sequence
-    code = countMatches(theSeq, attSeq);
+    // code = countMatches(theSeq, attSeq);
+
+    //matches in assembly
+    code = matches(theSeq, attSeq);
+
+
 
     int exact = code >> 4; // Shift right by 4 bits to get the 'exact' value
     int approximate = code & 0xF; // Bitwise AND with 0xF (which is 15 in decimal or 1111 in binary) to get the 'approximate' value
