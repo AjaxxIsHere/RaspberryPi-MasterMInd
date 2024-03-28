@@ -328,7 +328,7 @@ int waitForButton(uint32_t *gpio, int button)
 /* ********************************************************** */
 
 /* initialise the secret sequence; by default it should be a random sequence */
-// Modified by AJ
+// Modified by Leressa
 void inititalizeSeq()
 {
   srand(time(NULL)); // Seed the random number generator
@@ -350,7 +350,7 @@ void inititalizeSeq()
 };
 
 /* display the sequence on the terminal window, using the format from the sample run in the spec */
-// Modified by AJ
+// Modified by Leressa
 void showSeq(int *seq)
 {
   printf("Sequence: ");
@@ -367,15 +367,20 @@ void showSeq(int *seq)
 /* counts how many entries in seq2 match entries in seq1 */
 /* returns exact and approximate matches, either both encoded in one value, */
 /* or as a pointer to a pair of values */
-// Modified by AJ
-int /* or int* */ 
-countMatches(int *seq1, int *seq2)
+// Modified by Leressa
+int /* or int* */ countMatches(int *seq1, int *seq2)
 {
+
   int exact = 0, approximate = 0;
+
+  for (int j = 0; j < SEQL; j++ ) {
+    printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
+  }
 
   // Logic to count exact and approximate matches
   for (int i = 0; i < SEQL; i++)
   {
+    
     if (seq1[i] == seq2[i])
     {
       exact++;
@@ -384,7 +389,7 @@ countMatches(int *seq1, int *seq2)
     {
       for (int j = 0; j < SEQL; j++)
       {
-        if (seq1[i] == seq2[j])
+        if (seq2[i] == seq1[j] && seq1[j] != seq2[j])
         {
           approximate++;
           break;
@@ -399,7 +404,7 @@ countMatches(int *seq1, int *seq2)
 }
 
 /* show the results from calling countMatches on seq1 and seq1 */
-// Modified by AJ
+// Modified by Leressa
 void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int *seq2, /* optional, to control layout */ int lcd_format)
 {
   int exact = code >> 4;
@@ -413,7 +418,7 @@ void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int
 
 /* parse an integer value as a list of digits, and put them into @seq@ */
 /* needed for processing command-line with options -s or -u            */
-// Modified by AJ
+// Modified by Leressa
 void readSeq(int *seq, int val)
 {
   // Extract digits from val and store them in seq
@@ -426,7 +431,7 @@ void readSeq(int *seq, int val)
 
 /* read a guess sequence fron stdin and store the values in arr */
 /* only needed for testing the game logic, without button input */
-// Modified by AJ
+// Modified by Leressa
 int readNum(int max)
 {
   int num;
@@ -472,7 +477,7 @@ void timer_handler(int signum)
 }
 
 /* initialise time-stamps, setup an interval timer, and install the timer_handler callback */
-// Modified by AJ, incomplete!
+// Modified by AJ
 void initITimer(uint64_t timeout)
 {
   struct itimerval timer;
@@ -1142,36 +1147,16 @@ int main(int argc, char *argv[])
   /* see CW spec for details                                 */
   /* ******************************************************* */
   // +++++ main loop
-  //
 
-  // Blink the green LED to indicate the start of a new attempt
+  // Modified by AJ & Leressa
+
+  // Turn LED off if was on previous game
   digitalWrite(gpio, greenLED, OFF);
   digitalWrite(gpio, redLED, OFF);
 
-
   while (!found && attempts < 10)
   {
-    // //blinkN(gpio, redLED, 2);
-    // digitalWrite(gpio, greenLED, OFF);
 
-    // // Wait for the button to be pressed
-    // waitForButton(gpio, pinButton);
-
-    // // Read the button press
-    // buttonPressed = waitForButton(gpio, pinButton);
-    // printf("Button pressed: %d\n", buttonPressed);
-
-    // // If the button is pressed, read the number and store it in the sequence
-    // if (buttonPressed == 1)
-    // {
-    //   digitalWrite(gpio, greenLED, ON);
-    //   delay(5000);
-    // }
-    // else
-    // {
-    //   // digitalWrite(gpio, greenLED, OFF);
-    //   // delay(5000);
-    // }
     int turn = 0;
 
     printf("Round %d!!!\n", attempts += 1);
@@ -1204,30 +1189,28 @@ int main(int argc, char *argv[])
         }
       }
       printf("Button pressed %d times\n", buttonPressCount);
+
+      // Blink red LED indicating the end of the time window
       digitalWrite(gpio, redLED, ON);
       delay(2000);
       digitalWrite(gpio, redLED, OFF);
 
       // Blink the number of times the button was pressed on green
-      for (int i = 0; i < buttonPressCount; i++)
-      {
-        // Blink green LED
-        blinkN(gpio, greenLED, 1);
-      }
+      blinkN(gpio, greenLED, buttonPressCount);
 
       // Store the number of button presses in attSeq
-      attSeq[turn] = buttonPressCount;
+      attSeq[turn - 1] = buttonPressCount;
       // Repeat for a sequence of 3
       if (turn <= 3)
       {
         // Delay before starting the next attempt
-        delay(2000);
+        delay(1500);
       }
       if (turn == 3)
       {
+        printf("%d\n", attSeq[0]);
         printf("%d\n", attSeq[1]);
         printf("%d\n", attSeq[2]);
-        printf("%d\n", attSeq[3]);
 
         blinkN(gpio, redLED, 2);
         break;
@@ -1236,6 +1219,17 @@ int main(int argc, char *argv[])
 
     // Compare the sequence with the secret sequence
     code = countMatches(theSeq, attSeq);
+
+    int exact = code >> 4; // Shift right by 4 bits to get the 'exact' value
+    int approximate = code & 0xF; // Bitwise AND with 0xF (which is 15 in decimal or 1111 in binary) to get the 'approximate' value
+
+    printf("Exact: %d\n", exact);
+    printf("Approximate: %d\n", approximate);
+
+    // blinkN(gpio, greenLED, exact);
+    // blinkN(gpio, greenLED, exact);
+
+
   }
 
   if (found)
