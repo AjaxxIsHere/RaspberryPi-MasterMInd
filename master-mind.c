@@ -343,7 +343,7 @@ void inititalizeSeq()
     }
   }
 
-  for (int i = 1; i <= SEQL; i++)
+  for (int i = 0; i < SEQL; i++)
   {
     theSeq[i] = rand() % 3 + 1; // Generate a random number between 1 and 3
   }
@@ -354,7 +354,7 @@ void inititalizeSeq()
 void showSeq(int *seq)
 {
   printf("Sequence: ");
-  for (int i = 1; i <= SEQL; i++) // Changed SEQ_LENGTH to SEQL
+  for (int i = 0; i < SEQL; i++) // Changed SEQ_LENGTH to SEQL
   {
     printf("%d ", seq[i]);
   }
@@ -1156,10 +1156,17 @@ int main(int argc, char *argv[])
 
   while (!found && attempts < 10)
   {
+    lcdClear(lcd);
 
     int turn = 0;
 
     printf("Round %d!!!\n", attempts += 1);
+
+    // prints the round number on the lcd
+    sprintf(buf, "Round: %d", attempts);
+    lcdPosition(lcd, 0, 0);
+    lcdPuts(lcd, buf);
+    
 
     while (1)
     {
@@ -1168,7 +1175,7 @@ int main(int argc, char *argv[])
       printf("Enter a sequence of %d numbers\n", SEQL);
       // Time window of 7 seconds
       time_t startTime = time(NULL);
-      time_t endTime = startTime + 7;
+      time_t endTime = startTime + 5;
 
       // Count of button presses
       int buttonPressCount = 0;
@@ -1224,11 +1231,45 @@ int main(int argc, char *argv[])
     int approximate = code & 0xF; // Bitwise AND with 0xF (which is 15 in decimal or 1111 in binary) to get the 'approximate' value
 
     printf("Exact: %d\n", exact);
+   
     printf("Approximate: %d\n", approximate);
 
-    // blinkN(gpio, greenLED, exact);
-    // blinkN(gpio, greenLED, exact);
+    delay(1000);
 
+    // prints exact on the lcd
+    lcdClear(lcd);
+    blinkN(gpio, greenLED, exact);
+    sprintf(buf, "Exact: %d", exact);
+    lcdPosition(lcd, 0, 1);
+    lcdPuts(lcd, buf);
+
+    // separator
+    blinkN(gpio, redLED, 1);
+
+    // prints approximate on the lcd
+    lcdClear(lcd);
+    blinkN(gpio, greenLED, approximate);
+    sprintf(buf, "Approx: %d", approximate);
+    lcdPosition(lcd, 0, 1);
+    lcdPuts(lcd, buf);
+
+    if (exact == 3)
+    {
+      found = 1;
+      break;
+    }
+    else {
+      // Clear the sequence
+      for (int i = 0; i < SEQL; i++)
+      {
+        attSeq[i] = 0;
+      }
+    }
+    blinkN(gpio, redLED, 3);
+
+    delay(500);
+    printf("Starting next round\n");
+    delay(2000);
 
   }
 
@@ -1236,7 +1277,17 @@ int main(int argc, char *argv[])
   {
     /* ***  COMPLETE the code here  ***  */
     fprintf(stdout, "Sequence found\n");
-    lcdPuts(lcd, "sequence found!");
+    lcdClear(lcd);
+    lcdPuts(lcd, "SUCCESS!");
+    delay(2000);
+    // prints the number of attempts done on the lcd
+    
+    sprintf(buf, "Attempts: %d", attempts);
+    lcdPosition(lcd, 0, 0);
+    lcdPuts(lcd, buf);
+    delay(10000);
+    lcdClear(lcd);
+
   }
   else
   {
