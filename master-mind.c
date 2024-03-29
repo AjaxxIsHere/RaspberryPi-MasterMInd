@@ -298,7 +298,6 @@ int waitForButton(uint32_t *gpio, int button)
   {
     int state = readButton(gpio, button);
 
-    fprintf(stderr, "Button state: %d\n", state);
     if (state == ON)
     {
       fprintf(stderr, "Button pressed\n");
@@ -1154,7 +1153,7 @@ int main(int argc, char *argv[])
   digitalWrite(gpio, greenLED, OFF);
   digitalWrite(gpio, redLED, OFF);
 
-  while (!found && attempts < 10)
+  while (!found && attempts < 5)
   {
     lcdClear(lcd);
 
@@ -1166,14 +1165,12 @@ int main(int argc, char *argv[])
     sprintf(buf, "Round: %d", attempts);
     lcdPosition(lcd, 0, 0);
     lcdPuts(lcd, buf);
-    
 
     while (1)
     {
       printf("Turn: %d\n", turn += 1);
-      delay(3000);
       printf("Enter a sequence of %d numbers\n", SEQL);
-      // Time window of 7 seconds
+      // Time window of 5 seconds
       time_t startTime = time(NULL);
       time_t endTime = startTime + 5;
 
@@ -1211,14 +1208,11 @@ int main(int argc, char *argv[])
       if (turn <= 3)
       {
         // Delay before starting the next attempt
-        delay(1500);
+        delay(1000);
       }
       if (turn == 3)
       {
-        printf("%d\n", attSeq[0]);
-        printf("%d\n", attSeq[1]);
-        printf("%d\n", attSeq[2]);
-
+        // blink red LED twice to indicate the end of the attempt
         blinkN(gpio, redLED, 2);
         break;
       }
@@ -1231,23 +1225,22 @@ int main(int argc, char *argv[])
     int approximate = code & 0xF; // Bitwise AND with 0xF (which is 15 in decimal or 1111 in binary) to get the 'approximate' value
 
     printf("Exact: %d\n", exact);
-   
     printf("Approximate: %d\n", approximate);
 
-    delay(1000);
+    delay(500);
 
     // prints exact on the lcd
     lcdClear(lcd);
     blinkN(gpio, greenLED, exact);
     sprintf(buf, "Exact: %d", exact);
-    lcdPosition(lcd, 0, 1);
+    lcdPosition(lcd, 1, 0);
     lcdPuts(lcd, buf);
 
     // separator
     blinkN(gpio, redLED, 1);
 
     // prints approximate on the lcd
-    lcdClear(lcd);
+    //lcdClear(lcd);
     blinkN(gpio, greenLED, approximate);
     sprintf(buf, "Approx: %d", approximate);
     lcdPosition(lcd, 0, 1);
@@ -1279,9 +1272,10 @@ int main(int argc, char *argv[])
     fprintf(stdout, "Sequence found\n");
     lcdClear(lcd);
     lcdPuts(lcd, "SUCCESS!");
-    delay(2000);
-    // prints the number of attempts done on the lcd
-    
+    digitalWrite(gpio, redLED, ON);
+    blinkN(gpio, greenLED, 3);
+
+    // prints the number of attempts done on the lcd 
     sprintf(buf, "Attempts: %d", attempts);
     lcdPosition(lcd, 0, 0);
     lcdPuts(lcd, buf);
@@ -1292,6 +1286,7 @@ int main(int argc, char *argv[])
   else
   {
     fprintf(stdout, "Sequence not found\n");
+    lcdPuts(lcd, "YOU LOSE!");
   }
   return 0;
 }
