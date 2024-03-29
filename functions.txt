@@ -1,0 +1,41 @@
+    digitalWrite(uint32_t *gpio, int pin, int value): Sets the output on a specified GPIO pin to a given value (LOW or HIGH).
+
+    pinMode(uint32_t *gpio, int pin, int mode): Sets the mode of a GPIO pin (INPUT or OUTPUT).
+
+    writeLED(uint32_t *gpio, int led, int value): Writes a value (HIGH or LOW) to the specified LED pin.
+
+    readButton(uint32_t *gpio, int button): Reads the value (HIGH or LOW) from the specified button pin.
+
+    waitForButton(uint32_t *gpio, int button): Blocks until a button press is detected on the specified pin.
+
+    initSeq(): Initializes the secret sequence with random values.
+
+    showSeq(int *seq): Prints the sequence to the terminal.
+
+    countMatches(int *seq1, int *seq2): Counts how many entries in seq2 match entries in seq1 and returns the count of exact and approximate matches combined.
+
+    showMatches(int code, int *seq1, int *seq2, int lcd_format): Prints the exact and approximate matches between two sequences.
+
+    readSeq(int *seq, int val): Parses an integer value as a list of digits and stores them in a sequence.
+
+    readNum(int max): Reads a number from stdin.
+
+    timeInMicroseconds(): Returns the current time in microseconds.
+
+    timer_handler(int signum): Handles the timer signal.
+
+    initITimer(uint64_t timeout): Initializes time-stamps, sets up an interval timer, and installs the timer_handler callback.
+
+    failure(int fatal, const char *message, ...): Handles failures and exits the program if fatal.
+
+    waitForEnter(): Waits for the user to press Enter.
+
+    delay(unsigned int howLong): Waits for some number of milliseconds.
+
+    delayMicroseconds(unsigned int howLong): Waits for some number of microseconds.
+
+    Various LCD-related functions for controlling and interfacing with an LCD display.
+
+    blinkN(uint32_t *gpio, int led, int c): Blinks an LED a specified number of times.
+
+    The main function handles command-line arguments, initializes GPIO pins, reads user input, and controls the game logic.

@@ -4,8 +4,6 @@ Coursework 2 in F28HS "Hardware-Software Interface" on Systems Programming in C 
 
 The [CW specification is here](http://www.macs.hw.ac.uk/~hwloidl/Courses/F28HS/Coursework_F28HS_CW2_2024.pdf)
 
-Use Canvas groups (People -> Groups) to **sign-up as a pair** for this pair project.
-
 Links:
 - You can use any machine with an installation of the `gcc` C compiler for running the C code of the game logic
 - Template for the C program: [master-mind.c](master-mind.c)

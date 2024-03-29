@@ -12,6 +12,7 @@ $ ./testm
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <bits/getopt_core.h>
 
 #define LENGTH 3
 #define COLORS 3
