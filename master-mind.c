@@ -112,7 +112,7 @@
 #define STRB_PIN 24
 #define RS_PIN 25
 #define DATA0_PIN 23
-#define DATA1_PIN 18
+#define DATA1_PIN 26
 #define DATA2_PIN 27
 #define DATA3_PIN 22
 
@@ -224,17 +224,36 @@ int waitForButton(uint32_t *gpio, int button);
 
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
+// void digitalWrite(uint32_t *gpio, int pin, int value)
+// {
+//   if (value == OFF)
+//   {
+//     *(gpio + 10) = 1 << pin;
+//   }
+//   else
+//   {
+//     *(gpio + 7) = 1 << pin;
+//   }
+// };
+/*Create a function called digitalWriteAsm that does the exact function of digitalWrite but everything using inline assembly, including the if else operands*/
 void digitalWrite(uint32_t *gpio, int pin, int value)
 {
   if (value == OFF)
   {
-    *(gpio + 10) = 1 << pin;
+    asm volatile("mov r1, %[gpio]\n\t"
+                 "mov r2, %[value]\n\t"
+                 "str r2, [r1, #40]"
+                 : : [gpio] "r" (gpio), [value] "r" (1 << pin) : "r1", "r2");
   }
   else
   {
-    *(gpio + 7) = 1 << pin;
+    asm volatile("mov r1, %[gpio]\n\t"
+                 "mov r2, %[value]\n\t"
+                 "str r2, [r1, #28]"
+                 : : [gpio] "r" (gpio), [value] "r" (1 << pin) : "r1", "r2");
   }
-};
+}
+
 
 /* set the @mode@ of a GPIO @pin@ to INPUT or OUTPUT; @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
@@ -249,6 +268,73 @@ void pinMode(uint32_t *gpio, int pin, int mode)
     *(gpio + ((pin) / 10)) = (*(gpio + ((pin) / 10)) & ~(7 << (((pin) % 10) * 3)));
   }
 };
+
+// void pinMode(uint32_t *gpio, int pin, int mode)
+// {
+//   if (pin == STRB_PIN || pin == RS_PIN || (pin >= DATA0_PIN && pin <= DATA2_PIN)) {
+//     // Handle LCD GPIO pins
+//     asm volatile(
+//       "mov r1, %[gpio]\n\t"
+//       "mov r2, %[pin]\n\t"
+//       "mov r3, %[mode]\n\t"
+//       "ldr r4, [r1, r2, lsr #2]\n\t"
+//       "and r4, r4, #7\n\t"
+//       "cmp r3, #1\n\t"
+//       "beq set_output_lcd\n\t"
+//       "and r4, r4, #7\n\t"
+//       "str r4, [r1, r2, lsr #2]\n\t"
+//       "b end\n\t"
+//       "set_output_lcd:\n\t"
+//       "orr r4, r4, #1\n\t"
+//       "str r4, [r1, r2, lsr #2]\n\t"
+//       "end:\n\t"
+//       :
+//       : [gpio] "r" (gpio), [pin] "r" (pin), [mode] "r" (mode)
+//       : "r1", "r2", "r3", "r4"
+//     );
+//   } else if (pin == GREEN_LED || pin == RED_LED) {
+//     // Handle LED GPIO pins
+//     asm volatile(
+//       "mov r1, %[gpio]\n\t"
+//       "mov r2, %[pin]\n\t"
+//       "mov r3, %[mode]\n\t"
+//       "ldr r4, [r1, r2, lsr #5]\n\t"
+//       "cmp r3, #1\n\t"
+//       "beq set_output_led\n\t"
+//       "bic r4, r4, #(1 << (r2 % 32))\n\t"
+//       "str r4, [r1, r2, lsr #5]\n\t"
+//       "b end\n\t"
+//       "set_output_led:\n\t"
+//       "orr r4, r4, #(1 << (r2 % 32))\n\t"
+//       "str r4, [r1, r2, lsr #5]\n\t"
+//       "end:\n\t"
+//       :
+//       : [gpio] "r" (gpio), [pin] "r" (pin), [mode] "r" (mode)
+//       : "r1", "r2", "r3", "r4"
+//     );
+//   } else {
+//     // Handle other GPIO pins
+//     asm volatile(
+//       "mov r1, %[gpio]\n\t"
+//       "mov r2, %[pin]\n\t"
+//       "mov r3, %[mode]\n\t"
+//       "ldr r4, [r1, r2, lsr #2]\n\t"
+//       "and r4, r4, #7\n\t"
+//       "cmp r3, #1\n\t"
+//       "beq set_output\n\t"
+//       "and r4, r4, #7\n\t"
+//       "str r4, [r1, r2, lsr #2]\n\t"
+//       "b end\n\t"
+//       "set_output:\n\t"
+//       "orr r4, r4, #1\n\t"
+//       "str r4, [r1, r2, lsr #2]\n\t"
+//       "end:\n\t"
+//       :
+//       : [gpio] "r" (gpio), [pin] "r" (pin), [mode] "r" (mode)
+//       : "r1", "r2", "r3", "r4"
+//     );
+//   }
+// }
 
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 /* can use digitalWrite(), depending on your implementation */
@@ -286,6 +372,29 @@ int readButton(uint32_t *gpio, int pin)
     exit(EXIT_FAILURE);
   }
 }
+// int readButton(uint32_t *gpio, int pin)
+// {
+//   if ((pin & 0xFFFFFFC0) == 0)
+//   {
+//     __asm volatile(
+//       "ldr     r0, =GPIO_BASE    \n" // Load GPIO base address
+//       "add     r0, r0, #52       \n" // Calculate offset (13 * 4)
+//       "ldr     r1, [r0]          \n" // Load GPIO value
+//       "ands    r1, r1, r2        \n" // Mask with (1 << pin) 
+//       "beq     button_off        \n" // Branch if value is 0
+//       "mov     r0, #1            \n" // Return ON (Assuming ON = 1)
+//       "b       return            \n"
+//       "button_off:               \n"
+//       "mov     r0, #0            \n" // Return OFF (Assuming OFF = 0)
+//       "return:                  \n" // Return
+//       : /* No output operands */
+
+//         : "r" (gpio), "r" (pin) /* Input operands */
+//       : "r0", "r1" /* Registers modified by the assembly */
+//     );
+//   }
+// }
+
 
 /* wait for a button input on pin number @button@; @gpio@ is the mmaped GPIO base address */
 /* can use readButton(), depending on your implementation */
@@ -1240,7 +1349,6 @@ int main(int argc, char *argv[])
     blinkN(gpio, redLED, 1);
 
     // prints approximate on the lcd
-    //lcdClear(lcd);
     blinkN(gpio, greenLED, approximate);
     sprintf(buf, "Approx: %d", approximate);
     lcdPosition(lcd, 0, 1);
@@ -1285,6 +1393,7 @@ int main(int argc, char *argv[])
   }
   else
   {
+    lcdClear(lcd);
     fprintf(stdout, "Sequence not found\n");
     lcdPuts(lcd, "YOU LOSE!");
   }
