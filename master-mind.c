@@ -103,6 +103,7 @@
 #define INPUT 0
 #define OUTPUT 1
 
+// Changed LOW and HIGH to OFF and ON for the sake of clarity :)
 #define OFF 0
 #define ON 1
 
@@ -223,7 +224,24 @@ int waitForButton(uint32_t *gpio, int button);
 /* These are just prototypes; you need to complete the code for each function */
 
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
-// Modified by AJ
+// Modified by AJ & Leressa
+void digitalWrite(uint32_t *gpio, int pin, int value)
+{
+  if (value == OFF)
+  {
+    asm volatile("mov r1, %[gpio]\n\t"
+                 "mov r2, %[value]\n\t"
+                 "str r2, [r1, #40]"
+                 : : [gpio] "r"(gpio), [value] "r"(1 << pin) : "r1", "r2");
+  }
+  else
+  {
+    asm volatile("mov r1, %[gpio]\n\t"
+                 "mov r2, %[value]\n\t"
+                 "str r2, [r1, #28]"
+                 : : [gpio] "r"(gpio), [value] "r"(1 << pin) : "r1", "r2");
+  }
+}
 // void digitalWrite(uint32_t *gpio, int pin, int value)
 // {
 //   if (value == OFF)
@@ -235,25 +253,6 @@ int waitForButton(uint32_t *gpio, int button);
 //     *(gpio + 7) = 1 << pin;
 //   }
 // };
-/*Create a function called digitalWriteAsm that does the exact function of digitalWrite but everything using inline assembly, including the if else operands*/
-void digitalWrite(uint32_t *gpio, int pin, int value)
-{
-  if (value == OFF)
-  {
-    asm volatile("mov r1, %[gpio]\n\t"
-                 "mov r2, %[value]\n\t"
-                 "str r2, [r1, #40]"
-                 : : [gpio] "r" (gpio), [value] "r" (1 << pin) : "r1", "r2");
-  }
-  else
-  {
-    asm volatile("mov r1, %[gpio]\n\t"
-                 "mov r2, %[value]\n\t"
-                 "str r2, [r1, #28]"
-                 : : [gpio] "r" (gpio), [value] "r" (1 << pin) : "r1", "r2");
-  }
-}
-
 
 /* set the @mode@ of a GPIO @pin@ to INPUT or OUTPUT; @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
@@ -268,73 +267,6 @@ void pinMode(uint32_t *gpio, int pin, int mode)
     *(gpio + ((pin) / 10)) = (*(gpio + ((pin) / 10)) & ~(7 << (((pin) % 10) * 3)));
   }
 };
-
-// void pinMode(uint32_t *gpio, int pin, int mode)
-// {
-//   if (pin == STRB_PIN || pin == RS_PIN || (pin >= DATA0_PIN && pin <= DATA2_PIN)) {
-//     // Handle LCD GPIO pins
-//     asm volatile(
-//       "mov r1, %[gpio]\n\t"
-//       "mov r2, %[pin]\n\t"
-//       "mov r3, %[mode]\n\t"
-//       "ldr r4, [r1, r2, lsr #2]\n\t"
-//       "and r4, r4, #7\n\t"
-//       "cmp r3, #1\n\t"
-//       "beq set_output_lcd\n\t"
-//       "and r4, r4, #7\n\t"
-//       "str r4, [r1, r2, lsr #2]\n\t"
-//       "b end\n\t"
-//       "set_output_lcd:\n\t"
-//       "orr r4, r4, #1\n\t"
-//       "str r4, [r1, r2, lsr #2]\n\t"
-//       "end:\n\t"
-//       :
-//       : [gpio] "r" (gpio), [pin] "r" (pin), [mode] "r" (mode)
-//       : "r1", "r2", "r3", "r4"
-//     );
-//   } else if (pin == GREEN_LED || pin == RED_LED) {
-//     // Handle LED GPIO pins
-//     asm volatile(
-//       "mov r1, %[gpio]\n\t"
-//       "mov r2, %[pin]\n\t"
-//       "mov r3, %[mode]\n\t"
-//       "ldr r4, [r1, r2, lsr #5]\n\t"
-//       "cmp r3, #1\n\t"
-//       "beq set_output_led\n\t"
-//       "bic r4, r4, #(1 << (r2 % 32))\n\t"
-//       "str r4, [r1, r2, lsr #5]\n\t"
-//       "b end\n\t"
-//       "set_output_led:\n\t"
-//       "orr r4, r4, #(1 << (r2 % 32))\n\t"
-//       "str r4, [r1, r2, lsr #5]\n\t"
-//       "end:\n\t"
-//       :
-//       : [gpio] "r" (gpio), [pin] "r" (pin), [mode] "r" (mode)
-//       : "r1", "r2", "r3", "r4"
-//     );
-//   } else {
-//     // Handle other GPIO pins
-//     asm volatile(
-//       "mov r1, %[gpio]\n\t"
-//       "mov r2, %[pin]\n\t"
-//       "mov r3, %[mode]\n\t"
-//       "ldr r4, [r1, r2, lsr #2]\n\t"
-//       "and r4, r4, #7\n\t"
-//       "cmp r3, #1\n\t"
-//       "beq set_output\n\t"
-//       "and r4, r4, #7\n\t"
-//       "str r4, [r1, r2, lsr #2]\n\t"
-//       "b end\n\t"
-//       "set_output:\n\t"
-//       "orr r4, r4, #1\n\t"
-//       "str r4, [r1, r2, lsr #2]\n\t"
-//       "end:\n\t"
-//       :
-//       : [gpio] "r" (gpio), [pin] "r" (pin), [mode] "r" (mode)
-//       : "r1", "r2", "r3", "r4"
-//     );
-//   }
-// }
 
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 /* can use digitalWrite(), depending on your implementation */
@@ -372,27 +304,27 @@ int readButton(uint32_t *gpio, int pin)
     exit(EXIT_FAILURE);
   }
 }
+/* read a @value@ (OFF or ON) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
+// Modified by AJ
 // int readButton(uint32_t *gpio, int pin)
 // {
-//   if ((pin & 0xFFFFFFC0) == 0)
-//   {
-//     __asm volatile(
-//       "ldr     r0, =GPIO_BASE    \n" // Load GPIO base address
-//       "add     r0, r0, #52       \n" // Calculate offset (13 * 4)
-//       "ldr     r1, [r0]          \n" // Load GPIO value
-//       "ands    r1, r1, r2        \n" // Mask with (1 << pin) 
-//       "beq     button_off        \n" // Branch if value is 0
-//       "mov     r0, #1            \n" // Return ON (Assuming ON = 1)
-//       "b       return            \n"
-//       "button_off:               \n"
-//       "mov     r0, #0            \n" // Return OFF (Assuming OFF = 0)
-//       "return:                  \n" // Return
-//       : /* No output operands */
+//   int state;
+//   asm volatile("mov r1, %[gpio]\n\t"
+//                "mov r2, %[pin]\n\t"
+//                "ldr r3, [r1, #52]\n\t"
+//                "and r3, r3, r2, lsl #3\n\t"
+//                "cmp r3, #0\n\t"
+//                "beq off\n\t"
+//                "mov %[state], %[on]\n\t"
+//                "b done\n"
+//                "off:\n\t"
+//                "mov %[state], %[off]\n"
+//                "done:"
+//                : [state] "=r"(state)
+//                : [gpio] "r"(gpio), [pin] "r"(1 << pin), [on] "r"(ON), [off] "r"(OFF)
+//                : "r1", "r2", "r3");
 
-//         : "r" (gpio), "r" (pin) /* Input operands */
-//       : "r0", "r1" /* Registers modified by the assembly */
-//     );
-//   }
+//   return state;
 // }
 
 
@@ -401,8 +333,6 @@ int readButton(uint32_t *gpio, int pin)
 // Modified by AJ
 int waitForButton(uint32_t *gpio, int button)
 {
-  // fprintf(stderr, "int state = readButton(gpio, button);Waiting for button\n");
-  // int state = readButton(gpio, button);
   while (1)
   {
     int state = readButton(gpio, button);
@@ -451,10 +381,15 @@ void inititalizeSeq()
     }
   }
 
-  for (int i = 0; i < SEQL; i++)
-  {
-    theSeq[i] = rand() % 3 + 1; // Generate a random number between 1 and 3
-  }
+  // for (int i = 0; i < SEQL; i++)
+  // {
+  //   theSeq[i] = rand() % 3 + 1; // Generate a random number between 1 and 3
+  // }
+  // set 121 as the sequnece for testing
+  theSeq[0] = 1;
+  theSeq[1] = 2;
+  theSeq[2] = 1;
+  
 };
 
 /* display the sequence on the terminal window, using the format from the sample run in the spec */
@@ -469,6 +404,7 @@ void showSeq(int *seq)
   printf("\n");
 };
 
+// Not sure why this is used but we'll keep it for now
 #define NAN1 8
 #define NAN2 9
 
@@ -478,17 +414,17 @@ void showSeq(int *seq)
 // Modified by Leressa
 int /* or int* */ countMatches(int *seq1, int *seq2)
 {
-
+  
   int exact = 0, approximate = 0;
 
-  for (int j = 0; j < SEQL; j++ ) {
+  for (int j = 0; j < SEQL; j++)
+  {
     printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
   }
 
   // Logic to count exact and approximate matches
   for (int i = 0; i < SEQL; i++)
   {
-    
     if (seq1[i] == seq2[i])
     {
       exact++;
@@ -497,9 +433,10 @@ int /* or int* */ countMatches(int *seq1, int *seq2)
     {
       for (int j = 0; j < SEQL; j++)
       {
-        if (seq2[i] == seq1[j] && seq1[j] != seq2[j])
+        if (seq1[i] == seq2[j] && seq1[j] != seq2[j])
         {
           approximate++;
+          seq2[j] = -1; // Mark the matched element in seq1 as -1 to avoid counting it again
           break;
         }
       }
@@ -511,6 +448,7 @@ int /* or int* */ countMatches(int *seq1, int *seq2)
   return result;
 }
 
+
 /* show the results from calling countMatches on seq1 and seq1 */
 // Modified by Leressa
 void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int *seq2, /* optional, to control layout */ int lcd_format)
@@ -519,9 +457,6 @@ void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int
   int approximate = code & 0x0F;
 
   printf("Exact Matches: %d, Approximate Matches: %d\n", exact, approximate);
-
-  // Additional logic to display matches, possibly on LCD
-  // Modify this part based on your requirements
 }
 
 /* parse an integer value as a list of digits, and put them into @seq@ */
@@ -543,7 +478,6 @@ void readSeq(int *seq, int val)
 int readNum(int max)
 {
   int num;
-
   // Read a number from stdin
   printf("Enter a number between 0 and %d: ", max);
   scanf("%d", &num);
@@ -569,7 +503,6 @@ static uint64_t startT, stopT;
 // Modified by AJ
 uint64_t timeInMicroseconds()
 {
-  /* ***  COMPLETE the code here  ***  */
   struct timeval currentTime;
   gettimeofday(&currentTime, NULL);
   return ((unsigned long long)currentTime.tv_sec * 1000000ULL) + (unsigned long long)currentTime.tv_usec;
@@ -580,12 +513,11 @@ uint64_t timeInMicroseconds()
 // Modified by AJ, incomplete!
 void timer_handler(int signum)
 {
-  /* ***  COMPLETE the code here  ***  */
-  printf("Caught timer signal: %d\n", signum);
+  printf("Timer signal caught: %d\n", signum);
 }
 
 /* initialise time-stamps, setup an interval timer, and install the timer_handler callback */
-// Modified by AJ
+// Modified by AJ & Leressa
 void initITimer(uint64_t timeout)
 {
   struct itimerval timer;
@@ -930,7 +862,6 @@ void lcdPuts(struct lcdDataStruct *lcd, const char *string)
 // Modified by AJ
 void blinkN(uint32_t *gpio, int led, int c)
 {
-  /* ***  COMPLETE the code here  ***  */
   for (int i = 0; i < c; i++)
   {
     digitalWrite(gpio, led, ON);
@@ -1178,6 +1109,8 @@ int main(int argc, char *argv[])
   //	then can you flip the switch for the rest of the library to work in 4-bit
   //	mode which sends the commands as 2 x 4-bit values.
 
+  // Cool explainantion Mr. Henderson!
+
   if (bits == 4)
   {
     func = LCD_FUNC | LCD_FUNC_DL; // Set 8-bit mode 3 times
@@ -1236,7 +1169,7 @@ int main(int argc, char *argv[])
   /* initialise the secret sequence */
   if (!opt_s)
     inititalizeSeq();
-  if (1)
+  if (debug)
     showSeq(theSeq);
 
   // optionally one of these 2 calls:
@@ -1258,16 +1191,19 @@ int main(int argc, char *argv[])
 
   // Modified by AJ & Leressa
 
-  // Turn LED off if was on previous game
+  // Turn LED off if was ON previous game
   digitalWrite(gpio, greenLED, OFF);
   digitalWrite(gpio, redLED, OFF);
 
+  // Main game loop starts here, the player has 5 attempts to guess the secret sequence
   while (!found && attempts < 5)
   {
-    lcdClear(lcd);
-
     int turn = 0;
 
+    // clear the lcd from previous round
+    lcdClear(lcd);
+
+    // print the round number on the terminal
     printf("Round %d!!!\n", attempts += 1);
 
     // prints the round number on the lcd
@@ -1275,6 +1211,7 @@ int main(int argc, char *argv[])
     lcdPosition(lcd, 0, 0);
     lcdPuts(lcd, buf);
 
+    // main loop for each turn inputting the sequence
     while (1)
     {
       printf("Turn: %d\n", turn += 1);
@@ -1301,9 +1238,11 @@ int main(int argc, char *argv[])
           break;
         }
       }
+
+      // Print the number of button presses
       printf("Button pressed %d times\n", buttonPressCount);
 
-      // Blink red LED indicating the end of the time window
+      // Set redLED blink for 2 seconds to indicate the end of the time window
       digitalWrite(gpio, redLED, ON);
       delay(2000);
       digitalWrite(gpio, redLED, OFF);
@@ -1317,7 +1256,7 @@ int main(int argc, char *argv[])
       if (turn <= 3)
       {
         // Delay before starting the next attempt
-        delay(1000);
+        delay(500);
       }
       if (turn == 3)
       {
@@ -1330,7 +1269,7 @@ int main(int argc, char *argv[])
     // Compare the sequence with the secret sequence
     code = countMatches(theSeq, attSeq);
 
-    int exact = code >> 4; // Shift right by 4 bits to get the 'exact' value
+    int exact = code >> 4;        // Shift right by 4 bits to get the 'exact' value
     int approximate = code & 0xF; // Bitwise AND with 0xF (which is 15 in decimal or 1111 in binary) to get the 'approximate' value
 
     printf("Exact: %d\n", exact);
@@ -1359,7 +1298,8 @@ int main(int argc, char *argv[])
       found = 1;
       break;
     }
-    else {
+    else
+    {
       // Clear the sequence
       for (int i = 0; i < SEQL; i++)
       {
@@ -1371,7 +1311,6 @@ int main(int argc, char *argv[])
     delay(500);
     printf("Starting next round\n");
     delay(2000);
-
   }
 
   if (found)
@@ -1383,13 +1322,12 @@ int main(int argc, char *argv[])
     digitalWrite(gpio, redLED, ON);
     blinkN(gpio, greenLED, 3);
 
-    // prints the number of attempts done on the lcd 
+    // prints the number of attempts done on the lcd
     sprintf(buf, "Attempts: %d", attempts);
     lcdPosition(lcd, 0, 0);
     lcdPuts(lcd, buf);
     delay(10000);
     lcdClear(lcd);
-
   }
   else
   {
