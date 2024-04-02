@@ -1,3 +1,133 @@
+    ajandlb@raspberrypi:~/Desktop/RaspberryPi-MasterMInd-Top-Level1 $ gcc -Wall -Wextra master-mind.c -o mastermind
+master-mind.c: In function ‘showMatches’:
+master-mind.c:408:72: warning: unused parameter ‘seq1’ [-Wunused-parameter]
+  408 | ode, /* only for debugging */ int *seq1, int *seq2, /* optional, to control layout */ int lcd_format)
+      |                               ~~~~~^~~~
+
+master-mind.c:408:83: warning: unused parameter ‘seq2’ [-Wunused-parameter]
+  408 | y for debugging */ int *seq1, int *seq2, /* optional, to control layout */ int lcd_format)
+      |                               ~~~~~^~~~
+
+master-mind.c:408:127: warning: unused parameter ‘lcd_format’ [-Wunused-parameter]
+  408 | optional, to control layout */ int lcd_format)
+      |                                ~~~~^~~~~~~~~~
+
+master-mind.c: In function ‘lcdPutCommand’:
+master-mind.c:667:72: warning: format ‘%d’ expects argument of type ‘int’, but argument 5 has type ‘const struct lcdDataStruct *’ [-Wformat=]
+  667 | gitalWrite(%d,%d) and sendDataCmd(%d,%d)\n", lcd->rsPin, 0, lcd, command);
+      |                                   ~^                        ~~~
+      |                                    |                        |
+      |                                    int                      const struct lcdDataStruct *
+
+master-mind.c: In function ‘lcdHome’:
+master-mind.c:698:44: warning: format ‘%d’ expects argument of type ‘int’, but argument 3 has type ‘struct lcdDataStruct *’ [-Wformat=]
+  698 | f(stderr, "lcdHome: lcdPutCommand(%d,%d)\n", lcd, LCD_HOME);
+      |                                   ~^         ~~~
+      |                                    |         |
+      |                                    int       struct lcdDataStruct *
+
+master-mind.c: In function ‘lcdClear’:
+master-mind.c:708:45: warning: format ‘%d’ expects argument of type ‘int’, but argument 3 has type ‘struct lcdDataStruct *’ [-Wformat=]
+  708 | (stderr, "lcdClear: lcdPutCommand(%d,%d) and lcdPutCommand(%d,%d)\n", lcd, LCD_CLEAR, lcd, LCD_HOME);
+      |                                   ~^                                  ~~~
+      |                                    |                                  |
+      |                                    int                                struct lcdDataStruct *
+
+master-mind.c:708:70: warning: format ‘%d’ expects argument of type ‘int’, but argument 5 has type ‘struct lcdDataStruct *’ [-Wformat=]
+  708 | tCommand(%d,%d) and lcdPutCommand(%d,%d)\n", lcd, LCD_CLEAR, lcd, LCD_HOME);
+      |                                   ~^                         ~~~
+      |                                    |                         |
+      |                                    int                       struct lcdDataStruct *
+
+master-mind.c: In function ‘main’:
+master-mind.c:863:20: warning: unused variable ‘str’ [-Wunused-variable]
+  863 |   char str_in[20], str[20] = "some text";
+      |                    ^~~
+master-mind.c:858:7: warning: unused variable ‘t’ [-Wunused-variable]
+  858 |   int t;
+      |       ^
+master-mind.c:857:22: warning: unused variable ‘t2’ [-Wunused-variable]
+  857 |   struct timeval t1, t2;
+      |                      ^~
+master-mind.c:857:18: warning: unused variable ‘t1’ [-Wunused-variable]
+  857 |   struct timeval t1, t2;
+      |                  ^~
+master-mind.c:855:8: warning: unused variable ‘str2’ [-Wunused-variable]
+  855 |   char str2[32];
+      |        ^~~~
+master-mind.c:854:8: warning: unused variable ‘str1’ [-Wunused-variable]
+  854 |   char str1[32];
+      |        ^~~~
+master-mind.c:853:14: warning: unused variable ‘contained’ [-Wunused-variable]
+  853 |   int exact, contained;
+      |              ^~~~~~~~~
+master-mind.c:853:7: warning: unused variable ‘exact’ [-Wunused-variable]
+  853 |   int exact, contained;
+      |       ^~~~~
+master-mind.c:850:46: warning: unused variable ‘res’ [-Wunused-variable]
+  850 | nt fSel, shift, pin, clrOff, setOff, off, res;
+      |                                           ^~~
+
+master-mind.c:850:41: warning: unused variable ‘off’ [-Wunused-variable]
+  850 | nt fSel, shift, pin, clrOff, setOff, off, res;
+      |                                      ^~~
+
+master-mind.c:850:33: warning: unused variable ‘setOff’ [-Wunused-variable]
+  850 |   int fSel, shift, pin, clrOff, setOff, off, res;
+      |                                 ^~~~~~
+master-mind.c:850:25: warning: unused variable ‘clrOff’ [-Wunused-variable]
+  850 |   int fSel, shift, pin, clrOff, setOff, off, res;
+      |                         ^~~~~~
+master-mind.c:850:20: warning: unused variable ‘pin’ [-Wunused-variable]
+  850 |   int fSel, shift, pin, clrOff, setOff, off, res;
+      |                    ^~~
+master-mind.c:850:13: warning: unused variable ‘shift’ [-Wunused-variable]
+  850 |   int fSel, shift, pin, clrOff, setOff, off, res;
+      |             ^~~~~
+master-mind.c:850:7: warning: unused variable ‘fSel’ [-Wunused-variable]
+  850 |   int fSel, shift, pin, clrOff, setOff, off, res;
+      |       ^~~~
+master-mind.c:846:33: warning: unused variable ‘foo’ [-Wunused-variable]
+  846 |   int c, d, buttonPressed, rel, foo;
+      |                                 ^~~
+master-mind.c:846:28: warning: unused variable ‘rel’ [-Wunused-variable]
+  846 |   int c, d, buttonPressed, rel, foo;
+      |                            ^~~
+master-mind.c:846:13: warning: unused variable ‘buttonPressed’ [-Wunused-variable]
+  846 |   int c, d, buttonPressed, rel, foo;
+      |             ^~~~~~~~~~~~~
+master-mind.c:846:10: warning: unused variable ‘d’ [-Wunused-variable]
+  846 |   int c, d, buttonPressed, rel, foo;
+      |          ^
+master-mind.c:846:7: warning: unused variable ‘c’ [-Wunused-variable]
+  846 |   int c, d, buttonPressed, rel, foo;
+      |       ^
+master-mind.c:845:35: warning: unused variable ‘j’ [-Wunused-variable]
+  845 |   int found = 0, attempts = 0, i, j, code;
+      |                                   ^
+master-mind.c: In function ‘waitForButton’:
+master-mind.c:318:1: warning: control reaches end of non-void function [-Wreturn-type]
+  318 | }
+      | ^
+master-mind.c: At top level:
+master-mind.c:452:25: warning: ‘stopT’ defined but not used [-Wunused-variable]
+  452 | static uint64_t startT, stopT;
+      |                         ^~~~~
+master-mind.c:452:17: warning: ‘startT’ defined but not used [-Wunused-variable]
+  452 | static uint64_t startT, stopT;
+      |                 ^~~~~~
+master-mind.c:202:12: warning: ‘timed_out’ defined but not used [-Wunused-variable]
+  202 | static int timed_out = 0;
+      |            ^~~~~~~~~
+master-mind.c:143:14: warning: ‘color_names’ defined but not used [-Wunused-variable]
+  143 | static char *color_names[] = {"red", "green", "blue"}; // Store the names of the colours
+      |              ^~~~~~~~~~~
+master-mind.c:140:18: warning: ‘colors’ defined but not used [-Wunused-const-variable=]
+  140 | static const int colors = COLS; // Store the number of colours in the sequence
+      |                  ^~~~~~
+master-mind.c:126:22: warning: ‘newChar’ defined but not used [-Wunused-variable]
+  126 | static unsigned char newChar[8] =
+    
     digitalWrite(uint32_t *gpio, int pin, int value): Sets the output on a specified GPIO pin to a given value (LOW or HIGH).
 
     pinMode(uint32_t *gpio, int pin, int mode): Sets the mode of a GPIO pin (INPUT or OUTPUT).
@@ -39,3 +169,4 @@
     blinkN(uint32_t *gpio, int led, int c): Blinks an LED a specified number of times.
 
     The main function handles command-line arguments, initializes GPIO pins, reads user input, and controls the game logic.
+

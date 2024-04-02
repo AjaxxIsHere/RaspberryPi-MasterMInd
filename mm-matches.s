@@ -28,6 +28,7 @@ main_asm:
 	@ you probably need to initialise more values here
 
 	@ ... COMPLETE THE CODE BY ADDING YOUR CODE HERE, you should use sub-routines to structure your code
+    @ Modified by Leressa
 
 	@ Call the matching function
 	BL matches
@@ -43,9 +44,11 @@ exit:	@MOV	 R0, R4		@ load result to output register
 matches:			@ Input: R0, R1 ... ptr to int arrays to match @ Output: R0 ... exact matches (10s) and approx matches (1s) of base COLORS
 	@ COMPLETE THE CODE HERE
 
-	@Modified by larry
+	@Modified by Leressa
+
 
     @ Initialize exact and approximate matches counters
+    MOV  R0, #0      @ Initialize result register to 0
     MOV  R2, #0      @ exact = 0
     MOV  R3, #0      @ approximate = 0
 
@@ -104,9 +107,25 @@ end_counting:
 
 
 @ show the sequence in R0, use a call to printf in libc to do the printing, a useful function when debugging 
+.global showseq
 showseq: 			@ Input: R0 = pointer to a sequence of 3 int values to show
 	@ COMPLETE THE CODE HERE (OPTIONAL)
-	
+
+
+    @ Load sequence elements into registers R0, R1, R2
+    LDR  R0, [R0]       @ Load first element into R0
+    LDR  R1, [R0, #4]   @ Load second element into R1
+    LDR  R2, [R0, #8]   @ Load third element into R2
+
+    @ Prepare format string for printf
+    LDR  R3, =f4str  @ Load address of format string into R3
+
+    @ Call printf from libc
+    BL   printf
+
+    BX   LR
+
+
 	
 @ =============================================================================
 
