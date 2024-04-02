@@ -52,7 +52,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-#include <signal.h> // added for timer
+// #include <signal.h> // added for timer
 
 #include <errno.h>
 #include <fcntl.h>
@@ -141,11 +141,14 @@ static unsigned char newChar[8] =
 static const int colors = COLS; // Store the number of colours in the sequence
 static const int seqlen = SEQL; // Store the length of the sequence
 
-static char *color_names[] = {"red", "green", "blue"}; // Store the names of the colours
+// Store the names of the colours, currently not used
+static char *color_names[] = {"red", "green", "blue"};
 
-static int *theSeq = NULL; // Store the secret sequence
+// Store the secret sequence
+static int *theSeq = NULL;
 
-static int *seq1, *seq2, *cpy1, *cpy2; // Store the guess sequence and copies for use in countMatches
+// Store the guess sequence and copies for use in countMatches, cpy1 and cpy2 not used
+static int *seq1, *seq2, *cpy1, *cpy2;
 
 /* --------------------------------------------------------------------------- */
 
@@ -214,19 +217,23 @@ int waitForButton(uint32_t *gpio, int button);
 /* ------------------------------------------------------- */
 /* low-level interface to the hardware */
 
-/* ********************************************************** */
-/* COMPLETE the code for all of the functions in this SECTION */
-/* Either put them in a separate file, lcdBinary.c, and use   */
-/* inline Assembler there, or use a standalone Assembler file */
-/* You can also directly implement them here (inline Asm).    */
-/* ********************************************************** */
-
-/* These are just prototypes; you need to complete the code for each function */
-
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 // Modified by AJ & Leressa
+/**
+ * Sets the value of a GPIO pin on a Raspberry Pi.
+ *
+ * @param gpio  A pointer to the GPIO base address.
+ * @param pin   The pin number to set the value for.
+ * @param value The value to set the pin to (0 or 1).
+ */
 void digitalWrite(uint32_t *gpio, int pin, int value)
 {
+  /*
+    1. Moves the base address of the GPIO peripheral into register r1.
+    2. Moves the value to be written (1 shifted left by the pin number) into register r2.
+    3. Stores the value from r2 into the memory address at (r1 + 40). This address corresponds to the Clear Output Register (GPCLR) of the GPIO peripheral, which is used to set the pin to its OFF state.
+    The volatile keyword is used to tell the compiler not to optimize this piece of code, as it has side effects that the compiler may not be aware of (in this case, changing the state of a GPIO pin).
+  */
   if (value == OFF)
   {
     asm volatile("mov r1, %[gpio]\n\t"
@@ -242,20 +249,16 @@ void digitalWrite(uint32_t *gpio, int pin, int value)
                  : : [gpio] "r"(gpio), [value] "r"(1 << pin) : "r1", "r2");
   }
 }
-// void digitalWrite(uint32_t *gpio, int pin, int value)
-// {
-//   if (value == OFF)
-//   {
-//     *(gpio + 10) = 1 << pin;
-//   }
-//   else
-//   {
-//     *(gpio + 7) = 1 << pin;
-//   }
-// };
 
 /* set the @mode@ of a GPIO @pin@ to INPUT or OUTPUT; @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
+/**
+ * Sets the mode of a GPIO pin on a Raspberry Pi.
+ *
+ * @param gpio A pointer to the GPIO base address.
+ * @param pin  The pin number to set the mode for.
+ * @param mode The mode to set the pin to (0 for INPUT, 1 for OUTPUT).
+ */
 void pinMode(uint32_t *gpio, int pin, int mode)
 {
   if (mode == OUTPUT)
@@ -271,6 +274,13 @@ void pinMode(uint32_t *gpio, int pin, int mode)
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 /* can use digitalWrite(), depending on your implementation */
 // Modified by AJ
+/**
+ * Writes a value to a GPIO pin on a Raspberry Pi.
+ *
+ * @param gpio  A pointer to the GPIO base address.
+ * @param led   The pin number to write the value to.
+ * @param value The value to write to the pin (0 or 1).
+ */
 void writeLED(uint32_t *gpio, int led, int value)
 {
   if (value == ON)
@@ -285,6 +295,14 @@ void writeLED(uint32_t *gpio, int led, int value)
 
 /* read a @value@ (OFF or ON) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
+/**
+ * Reads the state of a GPIO pin on a Raspberry Pi.
+ *
+ * @param gpio A pointer to the GPIO base address.
+ * @param pin  The pin number to read the state of.
+ *
+ * @return The state of the pin (0 or 1).
+ */
 int readButton(uint32_t *gpio, int pin)
 {
   if ((pin & 0xFFFFFFC0) == 0)
@@ -304,45 +322,34 @@ int readButton(uint32_t *gpio, int pin)
     exit(EXIT_FAILURE);
   }
 }
-/* read a @value@ (OFF or ON) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
-// Modified by AJ
-// int readButton(uint32_t *gpio, int pin)
-// {
-//   int state;
-//   asm volatile("mov r1, %[gpio]\n\t"
-//                "mov r2, %[pin]\n\t"
-//                "ldr r3, [r1, #52]\n\t"
-//                "and r3, r3, r2, lsl #3\n\t"
-//                "cmp r3, #0\n\t"
-//                "beq off\n\t"
-//                "mov %[state], %[on]\n\t"
-//                "b done\n"
-//                "off:\n\t"
-//                "mov %[state], %[off]\n"
-//                "done:"
-//                : [state] "=r"(state)
-//                : [gpio] "r"(gpio), [pin] "r"(1 << pin), [on] "r"(ON), [off] "r"(OFF)
-//                : "r1", "r2", "r3");
-
-//   return state;
-// }
-
 
 /* wait for a button input on pin number @button@; @gpio@ is the mmaped GPIO base address */
 /* can use readButton(), depending on your implementation */
 // Modified by AJ
+/**
+ * Waits for a button to be pressed on a Raspberry Pi.
+ *
+ * @param gpio   A pointer to the GPIO base address.
+ * @param button The pin number of the button.
+ *
+ * @return 1 if the button is pressed, 0 otherwise.
+ */
 int waitForButton(uint32_t *gpio, int button)
 {
+  // Loop until the button is pressed
   while (1)
   {
+    // Read the state of the button
     int state = readButton(gpio, button);
 
+    // Check if the button is pressed
     if (state == ON)
     {
       fprintf(stderr, "Button pressed\n");
       return 1;
       break;
     }
+    // Delay for a short period before checking the button state again
     else
     {
       // state = ON;
@@ -360,44 +367,38 @@ int waitForButton(uint32_t *gpio, int button)
 /* ------------------------------------------------------- */
 /* AUX fcts of the game logic */
 
-/* ********************************************************** */
-/* COMPLETE the code for all of the functions in this SECTION */
-/* Implement these as C functions in this file                */
-/* ********************************************************** */
-
 /* initialise the secret sequence; by default it should be a random sequence */
 // Modified by Leressa
 void inititalizeSeq()
 {
-  srand(time(NULL)); // Seed the random number generator
+  // initializes the state of a random number generator with the current time, to ensure the sequence is always different
+  srand(time(NULL));
 
+  // checks if the sequence has a memory allocation
   if (theSeq == NULL)
   {
-    theSeq = (int *)malloc(SEQL * sizeof(int)); // Allocate memory for the sequence if not allocated already
+    theSeq = (int *)malloc(SEQL * sizeof(int)); // allocate memory for the sequence if not allocated already
     if (theSeq == NULL)
     {
-      fprintf(stderr, "Memory allocation failed for the secret sequence\n");
+      fprintf(stderr, "Memory allocation failed for the secret sequence\n"); // returns error if memory doesnt get allocated
       exit(EXIT_FAILURE);
     }
   }
 
-  // for (int i = 0; i < SEQL; i++)
-  // {
-  //   theSeq[i] = rand() % 3 + 1; // Generate a random number between 1 and 3
-  // }
-  // set 121 as the sequnece for testing
-  theSeq[0] = 1;
-  theSeq[1] = 2;
-  theSeq[2] = 1;
-  
+  // inserting random values into the sequence
+  for (int i = 0; i < SEQL; i++)
+  {
+    theSeq[i] = rand() % 3 + 1; // generates a random number between 1 and 3
+  }
 };
 
 /* display the sequence on the terminal window, using the format from the sample run in the spec */
 // Modified by Leressa
 void showSeq(int *seq)
 {
+  // loops through the sequence and prints each entry
   printf("Sequence: ");
-  for (int i = 0; i < SEQL; i++) // Changed SEQ_LENGTH to SEQL
+  for (int i = 0; i < SEQL; i++) // changed SEQ_LENGTH to SEQL
   {
     printf("%d ", seq[i]);
   }
@@ -414,45 +415,50 @@ void showSeq(int *seq)
 // Modified by Leressa
 int /* or int* */ countMatches(int *seq1, int *seq2)
 {
-  
+  // exact is the count of correct entries in the correct position
+  // approximate is the count of correct entries in the wrong position
   int exact = 0, approximate = 0;
 
+  // loops through seq1 and seq2 and shows both sequences
   for (int j = 0; j < SEQL; j++)
   {
     printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
   }
 
-  // Logic to count exact and approximate matches
+  // logic to count exact and approximate matches
   for (int i = 0; i < SEQL; i++)
   {
-    if (seq1[i] == seq2[i])
+    if (seq1[i] == seq2[i]) // if the entries in the same index are equal, then exact match
     {
       exact++;
     }
     else
     {
+      // checks if a value of the secret sequence is equal to any values of the guessed sequence 
       for (int j = 0; j < SEQL; j++)
       {
-        if (seq1[i] == seq2[j] && seq1[j] != seq2[j])
+        // ensures an entry of seq1 matches any entry of seq2 without entry of seq2 being an exact match
+        if (seq1[i] == seq2[j] && seq1[j] != seq2[j]) 
         {
           approximate++;
-          seq2[j] = -1; // Mark the matched element in seq1 as -1 to avoid counting it again
-          break;
+          seq2[j] = -1; // mark the matched element in seq2 as -1 to avoid counting it again
+          break; // if found, breaks from loop and countinues to the next entry of seq1
         }
       }
     }
   }
 
-  // Combine exact and approximate matches into one value
+  // combine exact and approximate matches into one value
   int result = (exact << 4) | approximate;
   return result;
 }
 
 
-/* show the results from calling countMatches on seq1 and seq1 */
+/* show the results from calling countMatches on seq1 and seq2 */
 // Modified by Leressa
 void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int *seq2, /* optional, to control layout */ int lcd_format)
 {
+  // retrieves exact and approximate values from the combined result
   int exact = code >> 4;
   int approximate = code & 0x0F;
 
@@ -464,7 +470,7 @@ void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int
 // Modified by Leressa
 void readSeq(int *seq, int val)
 {
-  // Extract digits from val and store them in seq
+  // extract digits from val and store them in seq
   for (int i = SEQL - 1; i >= 0; i--)
   {
     seq[i] = val % 10;
@@ -478,7 +484,7 @@ void readSeq(int *seq, int val)
 int readNum(int max)
 {
   int num;
-  // Read a number from stdin
+  // read a number from stdin
   printf("Enter a number between 0 and %d: ", max);
   scanf("%d", &num);
 
@@ -493,26 +499,24 @@ int readNum(int max)
 /* timestamps needed to implement a time-out mechanism */
 static uint64_t startT, stopT;
 
-/* ********************************************************** */
-/* COMPLETE the code for all of the functions in this SECTION */
-/* Implement these as C functions in this file                */
-/* ********************************************************** */
-
 /* you may need this function in timer_handler() below  */
 /* use the libc fct gettimeofday() to implement it      */
-// Modified by AJ
+// Modified by AJ, not used currently
 uint64_t timeInMicroseconds()
 {
+  // Get the current time in microseconds
   struct timeval currentTime;
   gettimeofday(&currentTime, NULL);
+  // Return the time in microseconds
   return ((unsigned long long)currentTime.tv_sec * 1000000ULL) + (unsigned long long)currentTime.tv_usec;
 }
 
 /* this should be the callback, triggered via an interval timer, */
 /* that is set-up through a call to sigaction() in the main fct. */
-// Modified by AJ, incomplete!
+// Modified by AJ, not used currently
 void timer_handler(int signum)
 {
+  // I assume we need to handle the timer signal?
   printf("Timer signal caught: %d\n", signum);
 }
 
@@ -532,9 +536,11 @@ void initITimer(uint64_t timeout)
   sa.sa_handler = &timer_handler;
   sa.sa_flags = SA_RESTART;
   sigfillset(&sa.sa_mask);
+
+  // Handle error if sigaction fails
   if (sigaction(SIGVTALRM, &sa, NULL) == -1)
   {
-    perror("Error: cannot handle SIGVTALRM"); // Handle error
+    perror("Error: cannot handle SIGVTALRM");
     exit(EXIT_FAILURE);
   }
 
@@ -590,29 +596,13 @@ void delay(unsigned int howLong)
 {
   struct timespec sleeper, dummy;
 
+  // Set the time to sleep based on howLong input
   sleeper.tv_sec = (time_t)(howLong / 1000);
   sleeper.tv_nsec = (long)(howLong % 1000) * 1000000;
 
+  // Sleep for the specified time
   nanosleep(&sleeper, &dummy);
 }
-
-/* From wiringPi code; comment by Gordon Henderson
- * delayMicroseconds:
- *	This is somewhat intersting. It seems that on the Pi, a single call
- *	to nanosleep takes some 80 to 130 microseconds anyway, so while
- *	obeying the standards (may take longer), it's not always what we
- *	want!
- *
- *	So what I'll do now is if the delay is less than 100uS we'll do it
- *	in a hard loop, watching a built-in counter on the ARM chip. This is
- *	somewhat sub-optimal in that it uses 100% CPU, something not an issue
- *	in a microcontroller, but under a multi-tasking, multi-user OS, it's
- *	wastefull, however we've no real choice )-:
- *
- *      Plan B: It seems all might not be well with that plan, so changing it
- *      to use gettimeofday () and poll on that instead...
- *********************************************************************************
- */
 
 void delayMicroseconds(unsigned int howLong)
 {
@@ -849,12 +839,6 @@ void lcdPuts(struct lcdDataStruct *lcd, const char *string)
 /* ======================================================= */
 /* SECTION: aux functions for game logic                   */
 /* ------------------------------------------------------- */
-
-/* ********************************************************** */
-/* COMPLETE the code for all of the functions in this SECTION */
-/* Implement these as C functions in this file                */
-/* ********************************************************** */
-
 /* --------------------------------------------------------------------------- */
 /* interface on top of the low-level pin I/O code */
 
@@ -862,6 +846,7 @@ void lcdPuts(struct lcdDataStruct *lcd, const char *string)
 // Modified by AJ
 void blinkN(uint32_t *gpio, int led, int c)
 {
+  // Blink the LED on pin led c times
   for (int i = 0; i < c; i++)
   {
     digitalWrite(gpio, led, ON);
@@ -1021,10 +1006,8 @@ int main(int argc, char *argv[])
   cpy2 = (int *)malloc(seqlen * sizeof(int));
 
   // -----------------------------------------------------------------------------
-  // constants for RPi2
+  // constants for RPi3
   gpiobase = 0x3F200000;
-
-  // const uint32_t RPI3_GPIO_BASE = 0x3F200000; // added for fact checking
 
   // -----------------------------------------------------------------------------
   // memory mapping
@@ -1039,9 +1022,8 @@ int main(int argc, char *argv[])
     return failure(FALSE, "setup: mmap (GPIO) failed: %s\n", strerror(errno));
 
   // -------------------------------------------------------
-  // Configuration of LED and BUTTON
-  // Modified by AJ
-  /* ***  COMPLETE the code here  ***  */
+  // Configuration of LED, BUTTON and LCD pins
+  // Modified by AJ & Leressa
   pinMode(gpio, greenLED, OUTPUT);
   pinMode(gpio, redLED, OUTPUT);
   pinMode(gpio, pinButton, INPUT);
@@ -1159,7 +1141,6 @@ int main(int argc, char *argv[])
   fprintf(stderr, "Printing welcome message on the LCD display ...\n");
 
   /*-------------------------------------------------------------------------------------*/
-  /* ***  COMPLETE the code here  ***  */
   lcdPuts(lcd, "Welcome!");
   delay(2000);
   lcdClear(lcd);
@@ -1177,16 +1158,6 @@ int main(int argc, char *argv[])
   // waitForButton(gpio, pinButton);
 
   // -----------------------------------------------------------------------------
-
-  /* ******************************************************* */
-  /* ***  COMPLETE the code here  ***                        */
-  /* this needs to implement the main loop of the game:      */
-  /* check for button presses and count them                 */
-  /* store the input numbers in the sequence @attSeq@        */
-  /* compute the match with the secret sequence, and         */
-  /* show the result                                         */
-  /* see CW spec for details                                 */
-  /* ******************************************************* */
   // +++++ main loop
 
   // Modified by AJ & Leressa
@@ -1315,7 +1286,6 @@ int main(int argc, char *argv[])
 
   if (found)
   {
-    /* ***  COMPLETE the code here  ***  */
     fprintf(stdout, "Sequence found\n");
     lcdClear(lcd);
     lcdPuts(lcd, "SUCCESS!");

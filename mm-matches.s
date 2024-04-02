@@ -29,78 +29,103 @@ main_asm:
 
 	@ ... COMPLETE THE CODE BY ADDING YOUR CODE HERE, you should use sub-routines to structure your code
     @ Modified by Leressa
-    @ Initialize any additional variables or registers needed for the matching function
-    MOV  R4, #0      @ Counter for exact matches
-    MOV  R5, #0      @ Counter for approximate matches
+
+	@ Call the matching function
+	BL matches
+
+exit:	@MOV	 R0, R4		@ load result to output register
+	MOV 	 R7, #1		@ load system call code
+	SWI 	 0		@ return this value
+
+@ -----------------------------------------------------------------------------
+@ sub-routines
+
+@ this is the matching fct that should be callable from C	
+matches:			@ Input: R0, R1 ... ptr to int arrays to match @ Output: R0 ... exact matches (10s) and approx matches (1s) of base COLORS
+	@ COMPLETE THE CODE HERE
+
+	@Modified by Leressa
+
+
+    @ Initialize exact and approximate matches counters
+    MOV  R0, #0      @ Initialize result register to 0
+    MOV  R2, #0      @ exact = 0
+    MOV  R3, #0      @ approximate = 0
 
     @ Loop through the sequences
 outer_loop:
-    CMP  R2, #0      @ Check if secret pointer is NULL (end of sequence)
+    CMP  R1, #0      @ Check if seq1 pointer is NULL (end of sequence)
     BEQ  end_counting
 
-    @ Load secret[i] into R6
-    LDR  R6, [R2], #4    @ Load value from secret and increment pointer
-    CMP  R6, #0          @ Check if secret[i] is 0 (end of sequence)
+    @ Load seq1[i] into R4
+    LDR  R4, [R0], #4    @ Load value from seq1 and increment pointer
+    CMP  R4, #0          @ Check if seq1[i] is 0 (end of sequence)
     BEQ  end_counting
 
-    @ Load guess[i] into R7
-    LDR  R7, [R3], #4    @ Load value from guess and increment pointer
+    @ Load seq2[i] into R5
+    LDR  R5, [R1], #4    @ Load value from seq2 and increment pointer
 
-    @ Compare secret[i] and guess[i]
-    CMP  R6, R7
+    @ Compare seq1[i] and seq2[i]
+    CMP  R4, R5
     BEQ  exact_match
 
     @ No exact match, check for approximate match
-    @ Loop through secret to find match for guess[i]
-    MOV  R8, #0          @ Initialize j = 0
+    @ Loop through seq1 to find match for seq2[i]
+    MOV  R6, #0          @ Initialize j = 0
 inner_loop:
-    CMP  R8, #3          @ Check if j >= LEN (assumed to be 3)
-    BEQ  outer_loop      @ If j >= LEN, exit inner loop
+    CMP  R6, #3          @ Check if j >= SEQL (assumed to be 3)
+    BEQ  outer_loop      @ If j >= SEQL, exit inner loop
 
-    @ Load secret[j] into R9
-    LDR  R9, [R2, R8, LSL #2]    @ Load value from secret[j]
+    @ Load seq1[j] into R7
+    LDR  R7, [R0, R6, LSL #2]    @ Load value from seq1[j]
 
-    @ Compare secret[j] and guess[i]
-    CMP  R9, R7
+    @ Compare seq1[j] and seq2[i]
+    CMP  R7, R5
     BEQ  approximate_match
 
     @ No match found, increment j and repeat inner loop
-    ADD  R8, R8, #1      @ Increment j
+    ADD  R6, R6, #1      @ Increment j
     B    inner_loop      @ Repeat inner loop
 
     @ Exact match found
 exact_match:
-    ADD  R4, R4, #1      @ Increment exact counter
+    ADD  R2, R2, #1      @ Increment exact counter
     B    outer_loop      @ Continue outer loop
 
     @ Approximate match found
 approximate_match:
-    ADD  R5, R5, #1      @ Increment approximate counter
+    ADD  R3, R3, #1      @ Increment approximate counter
     B    outer_loop      @ Continue outer loop
 
 end_counting:
     @ Combine exact and approximate counters into one value
-    MOV  R0, R4, LSL #4  @ Shift left by 4 bits to put exact matches in tens place
-    ADD  R0, R0, R5      @ Add approximate matches to combine result
+    MOV  R0, R2, LSL #4  @ Shift left by 4 bits to put exact matches in tens place
+    ADD  R0, R0, R3      @ Add approximate matches to combine result
 
     @ Function epilogue if needed
     BX   LR
 
 
 @ show the sequence in R0, use a call to printf in libc to do the printing, a useful function when debugging 
+.global showseq
 showseq: 			@ Input: R0 = pointer to a sequence of 3 int values to show
 	@ COMPLETE THE CODE HERE (OPTIONAL)
-    
-    @ Modified by Leressa
-    @ Print the sequence using printf
-    PUSH {LR}           @ Save the return address
-    LDR  R1, =f4str     @ Load the format string
-    LDR  R2, [R0]       @ Load the first element of the sequence
-    LDR  R3, [R0, #4]   @ Load the second element of the sequence
-    LDR  R4, [R0, #8]   @ Load the third element of the sequence
-    BL   printf         @ Call printf to print the sequence
-    POP  {PC}           @ Restore the return address and return
-	
+
+
+    @ Load sequence elements into registers R0, R1, R2
+    LDR  R0, [R0]       @ Load first element into R0
+    LDR  R1, [R0, #4]   @ Load second element into R1
+    LDR  R2, [R0, #8]   @ Load third element into R2
+
+    @ Prepare format string for printf
+    LDR  R3, =f4str  @ Load address of format string into R3
+
+    @ Call printf from libc
+    BL   printf
+
+    BX   LR
+
+
 	
 @ =============================================================================
 
