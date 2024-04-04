@@ -289,18 +289,24 @@ void pinMode(uint32_t *gpio, int pin, int mode)
  * @param led   The pin number to write the value to.
  * @param value The value to write to the pin (0 or 1).
  */
-void writeLED(uint32_t *gpio, int led, int value)
-{
-  if (value == ON)
-  {
-    *gpio |= 1 << led;
-  }
-  else
-  {
-    *gpio &= ~(1 << led);
-  }
+void writeLED(uint32_t *gpio, int led, int value) {
+    int offset;
+    
+    if (value == ON) {
+        offset = 28; // Offset for setting GPIO register
+    } else { // value == OFF
+        offset = 40; // Offset for clearing GPIO register
+    }
+    
+    asm volatile (
+        "mov r2, #1\n\t"
+        "lsl r2, %[led]\n\t"
+        "str r2, [%[gpio], %[offset]]\n\t"
+        :
+        : [gpio] "r" (gpio), [led] "r" (led), [offset] "r" (offset)
+        : "r2", "memory"
+    );
 }
-
 
 /* read a @value@ (OFF or ON) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
@@ -425,11 +431,12 @@ int /* or int* */ countMatches(int *seq1, int *seq2)
   // approximate is the count of correct entries in the wrong position
   int exact = 0, approximate = 0;
 
-  // loops through seq1 and seq2 and shows both sequences
-  for (int j = 0; j < SEQL; j++)
-  {
-    printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
-  }
+  // // loops through seq1 and seq2 and shows both sequences
+  // // Uncomment for debugging purposes
+  // for (int j = 0; j < SEQL; j++)
+  // {
+  //   printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
+  // }
 
   // logic to count exact and approximate matches
   for (int i = 0; i < SEQL; i++)
@@ -459,52 +466,6 @@ int /* or int* */ countMatches(int *seq1, int *seq2)
   return result;
 }
 
-// int* /* or int* */ countMatches(int *seq1, int *seq2)
-// {
-//   // exact is the count of correct entries in the correct position
-//   // approximate is the count of correct entries in the wrong position
-//   int exact = 0, approximate = 0;
-//   int result[2];
-
-//   // loops through seq1 and seq2 and shows both sequences
-//   for (int j = 0; j < SEQL; j++)
-//   {
-//     printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
-//   }
-
-//   // logic to count exact and approximate matches
-//   for (int i = 0; i < SEQL; i++)
-//   {
-//     if (seq1[i] == seq2[i]) // if the entries in the same index are equal, then exact match
-//     {
-//       exact++;
-//     }
-//     else
-//     {
-//       // checks if a value of the secret sequence is equal to any values of the guessed sequence
-//       for (int j = 0; j < SEQL; j++)
-//       {
-//         // ensures an entry of seq1 matches any entry of seq2 without entry of seq2 being an exact match
-//         if (seq1[i] == seq2[j] && seq1[j] != seq2[j])
-//         {
-//           approximate++;
-//           seq2[j] = -1; // mark the matched element in seq2 as -1 to avoid counting it again
-//           break;        // if found, breaks from loop and countinues to the next entry of seq1
-//         }
-//       }
-//     }
-//   }
-
-//   // combine exact and approximate matches into one value
-//   result[0] = exact;
-//   result[1] = approximate;
-//   return result;
-// }
-
-
-
-// extern matches(int *seq1, int *seq2);
-
 /* show the results from calling countMatches on seq1 and seq2 */
 // Modified by Leressa
 void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int *seq2, /* optional, to control layout */ int lcd_format)
@@ -519,7 +480,7 @@ void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int
 
 /* parse an integer value as a list of digits, and put them into @seq@ */
 /* needed for processing command-line with options -s or -u            */
-// Modified by Leressa
+// Modified by Leressa, for debugging purposes
 void readSeq(int *seq, int val)
 {
   // extract digits from val and store them in seq
@@ -532,7 +493,7 @@ void readSeq(int *seq, int val)
 
 /* read a guess sequence fron stdin and store the values in arr */
 /* only needed for testing the game logic, without button input */
-// Modified by Leressa
+// Modified by Leressa, for debugging purposes
 int readNum(int max)
 {
   int num;
@@ -573,7 +534,7 @@ void timer_handler(int signum)
 }
 
 /* initialise time-stamps, setup an interval timer, and install the timer_handler callback */
-// Modified by AJ & Leressa
+// Modified by AJ & Leressa, not used currently
 void initITimer(uint64_t timeout)
 {
   struct itimerval timer;
@@ -926,7 +887,7 @@ int main(int argc, char *argv[])
   int fSel, shift, pin, clrOff, setOff, off, res;
   int fd;
 
-  int exact, contained;
+  int exact, approximate;
   char str1[32];
   char str2[32];
 
@@ -1292,8 +1253,8 @@ int main(int argc, char *argv[])
     // Compare the sequence with the secret sequence
     code = countMatches(theSeq, attSeq);
 
-    int exact = code >> 4;        // Shift right by 4 bits to get the 'exact' value
-    int approximate = code & 0xF; // Bitwise AND with 0xF (which is 15 in decimal or 1111 in binary) to get the 'approximate' value
+    exact = code >> 4;        // Shift right by 4 bits to get the 'exact' value
+    approximate = code & 0xF; // Bitwise AND with 0xF (which is 15 in decimal or 1111 in binary) to get the 'approximate' value
 
     printf("Exact: %d\n", exact);
     printf("Approximate: %d\n", approximate);
