@@ -52,7 +52,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-// #include <signal.h> // added for timer
 
 #include <errno.h>
 #include <fcntl.h>
@@ -62,8 +61,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
-#include <bits/getopt_core.h>
-// #include <asm-generic/fcntl.h>
 
 /* --------------------------------------------------------------------------- */
 /* Config settings */
@@ -88,6 +85,8 @@
 // APP constants   ---------------------------------
 #define COLS 3 // Number of colours
 #define SEQL 3 // Number of the length of the sequence
+// We can modify the seql value to any number
+
 // =======================================================
 
 // generic constants
@@ -220,32 +219,26 @@ int waitForButton(uint32_t *gpio, int button);
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 // Modified by AJ & Leressa
 /**
- * Sets the value of a GPIO pin on a Raspberry Pi.
+ * Sets the value of a GPIO pin on the Raspberry Pi.
  *
- * @param gpio  A pointer to the GPIO base address.
+ * @param gpio  Pointer to the GPIO base address.
  * @param pin   The pin number to set the value for.
  * @param value The value to set the pin to (0 or 1).
  */
 void digitalWrite(uint32_t *gpio, int pin, int value)
 {
-  /*
-    1. Moves the base address of the GPIO peripheral into register r1.
-    2. Moves the value to be written (1 shifted left by the pin number) into register r2.
-    3. Stores the value from r2 into the memory address at (r1 + 40). This address corresponds to the Clear Output Register (GPCLR) of the GPIO peripheral, which is used to set the pin to its OFF state.
-    The volatile keyword is used to tell the compiler not to optimize this piece of code, as it has side effects that the compiler may not be aware of (in this case, changing the state of a GPIO pin).
-  */
   if (value == OFF)
   {
-    asm volatile("mov r1, %[gpio]\n\t"
-                 "mov r2, %[value]\n\t"
-                 "str r2, [r1, #40]"
+    asm volatile("mov r1, %[gpio]\n\t" // Move the GPIO base address into register r1
+                 "mov r2, %[value]\n\t" // Move the value into register r2
+                 "str r2, [r1, #40]" // Store the value in r2 into the GPIO register at offset 40
                  : : [gpio] "r"(gpio), [value] "r"(1 << pin) : "r1", "r2");
   }
   else
   {
     asm volatile("mov r1, %[gpio]\n\t"
                  "mov r2, %[value]\n\t"
-                 "str r2, [r1, #28]"
+                 "str r2, [r1, #28]" // Store the value in r2 into the GPIO register at offset 28
                  : : [gpio] "r"(gpio), [value] "r"(1 << pin) : "r1", "r2");
   }
 }
@@ -255,21 +248,36 @@ void digitalWrite(uint32_t *gpio, int pin, int value)
 /**
  * Sets the mode of a GPIO pin on a Raspberry Pi.
  *
- * @param gpio A pointer to the GPIO base address.
+ * @param gpio Pointer to the GPIO base address.
  * @param pin  The pin number to set the mode for.
  * @param mode The mode to set the pin to (0 for INPUT, 1 for OUTPUT).
  */
 void pinMode(uint32_t *gpio, int pin, int mode)
 {
-  if (mode == OUTPUT)
-  {
-    *(gpio + ((pin) / 10)) = (*(gpio + ((pin) / 10)) & ~(7 << (((pin) % 10) * 3))) | (1 << (((pin) % 10) * 3));
-  }
-  else
-  {
-    *(gpio + ((pin) / 10)) = (*(gpio + ((pin) / 10)) & ~(7 << (((pin) % 10) * 3)));
-  }
-};
+  int register_offset = pin / 10;
+  int bit_offset = (pin % 10) * 3;
+
+  asm volatile(
+      "ldr r3, [%[gpio], %[offset]]\n\t" // Load current register value
+      "mov r2, #1\n\t"
+      "lsl r2, %[bit_offset]\n\t" // Create bit mask
+      "ldr r4, %[mode]\n\t"       // Load mode into r4
+      "cmp r4, %[output]\n\t"
+      "beq output_mode\n\t" // Branch if mode is OUTPUT
+      "mvn r2, r2\n\t"      // Invert bits to create a mask that clears bits
+      "and r3, r3, r2\n\t"  // Set pin to INPUT
+      "str r3, [%[gpio], %[offset]]\n\t"
+      "b end_asm\n\t"
+
+      "output_mode:\n\t"
+      "orr r3, r3, r2\n\t" // Set pin to OUTPUT
+      "str r3, [%[gpio], %[offset]]\n\t"
+
+      "end_asm:\n\t"
+      :
+      : [gpio] "r"(gpio), [offset] "r"(register_offset * 4), [bit_offset] "r"(bit_offset), [mode] "m"(mode), [output] "i"(OUTPUT)
+      : "r2", "r3", "r4", "cc", "memory");
+}
 
 /* send a @value@ (LOW or HIGH) on pin number @pin@; @gpio@ is the mmaped GPIO base address */
 /* can use digitalWrite(), depending on your implementation */
@@ -277,7 +285,7 @@ void pinMode(uint32_t *gpio, int pin, int mode)
 /**
  * Writes a value to a GPIO pin on a Raspberry Pi.
  *
- * @param gpio  A pointer to the GPIO base address.
+ * @param gpio  Pointer to the GPIO base address.
  * @param led   The pin number to write the value to.
  * @param value The value to write to the pin (0 or 1).
  */
@@ -291,36 +299,34 @@ void writeLED(uint32_t *gpio, int led, int value)
   {
     *gpio &= ~(1 << led);
   }
-};
+}
+
 
 /* read a @value@ (OFF or ON) from pin number @pin@ (a button device); @gpio@ is the mmaped GPIO base address */
 // Modified by AJ
 /**
  * Reads the state of a GPIO pin on a Raspberry Pi.
  *
- * @param gpio A pointer to the GPIO base address.
+ * @param gpio Pointer to the GPIO base address.
  * @param pin  The pin number to read the state of.
  *
  * @return The state of the pin (0 or 1).
  */
 int readButton(uint32_t *gpio, int pin)
 {
-  if ((pin & 0xFFFFFFC0) == 0)
-  {
-    if ((*(gpio + 13) & (1 << pin)) == 0)
-    {
-      return OFF;
-    }
-    else
-    {
-      return ON;
-    }
-  }
-  else
-  {
-    fprintf(stderr, "Error: Invalid pin number\n");
-    exit(EXIT_FAILURE);
-  }
+  int value;
+  asm volatile(
+      "ldr %[value], [%[gpio], #0x34]\n\t" // Load the value from the GPIO register into %[value]
+      "mov r2, #1\n\t"                     // Move the value 1 into register r2
+      "lsl r2, %[pin]\n\t"                 // Left shift the value in r2 by %[pin] bits
+      "and %[value], %[value], r2\n\t"     // Perform a bitwise AND operation between %[value] and r2, store the result in %[value]
+      "cmp %[value], #0\n\t"               // Compare %[value] with 0
+      "moveq %[value], #0\n\t"             // If %[value] is equal to 0, move 0 into %[value]
+      "movne %[value], #1\n\t"             // If %[value] is not equal to 0, move 1 into %[value]
+      : [value] "=&r"(value)
+      : [gpio] "r"(gpio), [pin] "r"(pin)
+      : "r2", "cc");
+  return value;
 }
 
 /* wait for a button input on pin number @button@; @gpio@ is the mmaped GPIO base address */
@@ -329,7 +335,7 @@ int readButton(uint32_t *gpio, int pin)
 /**
  * Waits for a button to be pressed on a Raspberry Pi.
  *
- * @param gpio   A pointer to the GPIO base address.
+ * @param gpio   Pointer to the GPIO base address.
  * @param button The pin number of the button.
  *
  * @return 1 if the button is pressed, 0 otherwise.
@@ -434,15 +440,15 @@ int /* or int* */ countMatches(int *seq1, int *seq2)
     }
     else
     {
-      // checks if a value of the secret sequence is equal to any values of the guessed sequence 
+      // checks if a value of the secret sequence is equal to any values of the guessed sequence
       for (int j = 0; j < SEQL; j++)
       {
         // ensures an entry of seq1 matches any entry of seq2 without entry of seq2 being an exact match
-        if (seq1[i] == seq2[j] && seq1[j] != seq2[j]) 
+        if (seq1[i] == seq2[j] && seq1[j] != seq2[j])
         {
           approximate++;
           seq2[j] = -1; // mark the matched element in seq2 as -1 to avoid counting it again
-          break; // if found, breaks from loop and countinues to the next entry of seq1
+          break;        // if found, breaks from loop and countinues to the next entry of seq1
         }
       }
     }
@@ -453,6 +459,51 @@ int /* or int* */ countMatches(int *seq1, int *seq2)
   return result;
 }
 
+// int* /* or int* */ countMatches(int *seq1, int *seq2)
+// {
+//   // exact is the count of correct entries in the correct position
+//   // approximate is the count of correct entries in the wrong position
+//   int exact = 0, approximate = 0;
+//   int result[2];
+
+//   // loops through seq1 and seq2 and shows both sequences
+//   for (int j = 0; j < SEQL; j++)
+//   {
+//     printf("seq1[%d] = %d, seq2[%d] = %d\n", j, seq1[j], j, seq2[j]);
+//   }
+
+//   // logic to count exact and approximate matches
+//   for (int i = 0; i < SEQL; i++)
+//   {
+//     if (seq1[i] == seq2[i]) // if the entries in the same index are equal, then exact match
+//     {
+//       exact++;
+//     }
+//     else
+//     {
+//       // checks if a value of the secret sequence is equal to any values of the guessed sequence
+//       for (int j = 0; j < SEQL; j++)
+//       {
+//         // ensures an entry of seq1 matches any entry of seq2 without entry of seq2 being an exact match
+//         if (seq1[i] == seq2[j] && seq1[j] != seq2[j])
+//         {
+//           approximate++;
+//           seq2[j] = -1; // mark the matched element in seq2 as -1 to avoid counting it again
+//           break;        // if found, breaks from loop and countinues to the next entry of seq1
+//         }
+//       }
+//     }
+//   }
+
+//   // combine exact and approximate matches into one value
+//   result[0] = exact;
+//   result[1] = approximate;
+//   return result;
+// }
+
+
+
+// extern matches(int *seq1, int *seq2);
 
 /* show the results from calling countMatches on seq1 and seq2 */
 // Modified by Leressa
@@ -462,7 +513,8 @@ void showMatches(int /* or int* */ code, /* only for debugging */ int *seq1, int
   int exact = code >> 4;
   int approximate = code & 0x0F;
 
-  printf("Exact Matches: %d, Approximate Matches: %d\n", exact, approximate);
+  printf("%d exact\n", exact);
+  printf("%d approximate", approximate);
 }
 
 /* parse an integer value as a list of digits, and put them into @seq@ */
@@ -1150,7 +1202,7 @@ int main(int argc, char *argv[])
   /* initialise the secret sequence */
   if (!opt_s)
     inititalizeSeq();
-  if (debug)
+  if (TRUE)
     showSeq(theSeq);
 
   // optionally one of these 2 calls:
@@ -1186,7 +1238,7 @@ int main(int argc, char *argv[])
     while (1)
     {
       printf("Turn: %d\n", turn += 1);
-      printf("Enter a sequence of %d numbers\n", SEQL);
+      printf("Enter a sequence of %d numbers\n", seqlen);
       // Time window of 5 seconds
       time_t startTime = time(NULL);
       time_t endTime = startTime + 5;
@@ -1223,13 +1275,13 @@ int main(int argc, char *argv[])
 
       // Store the number of button presses in attSeq
       attSeq[turn - 1] = buttonPressCount;
-      // Repeat for a sequence of 3
-      if (turn <= 3)
+      // Repeat for a sequence of n length
+      if (turn <= seqlen)
       {
         // Delay before starting the next attempt
         delay(500);
       }
-      if (turn == 3)
+      if (turn == seqlen)
       {
         // blink red LED twice to indicate the end of the attempt
         blinkN(gpio, redLED, 2);
@@ -1248,6 +1300,11 @@ int main(int argc, char *argv[])
 
     delay(500);
 
+    if (exact == seqlen)
+    {
+      digitalWrite(gpio, redLED, ON);
+    }
+
     // prints exact on the lcd
     lcdClear(lcd);
     blinkN(gpio, greenLED, exact);
@@ -1255,8 +1312,15 @@ int main(int argc, char *argv[])
     lcdPosition(lcd, 1, 0);
     lcdPuts(lcd, buf);
 
-    // separator
-    blinkN(gpio, redLED, 1);
+    if (exact == seqlen)
+    {
+      digitalWrite(gpio, redLED, OFF);
+    }
+    else
+    {
+      // separator
+      blinkN(gpio, redLED, 1);
+    }
 
     // prints approximate on the lcd
     blinkN(gpio, greenLED, approximate);
@@ -1264,9 +1328,9 @@ int main(int argc, char *argv[])
     lcdPosition(lcd, 0, 1);
     lcdPuts(lcd, buf);
 
-    if (exact == 3)
+    if (exact == seqlen)
     {
-      found = 1;
+      found = TRUE;
       break;
     }
     else
@@ -1289,8 +1353,9 @@ int main(int argc, char *argv[])
     fprintf(stdout, "Sequence found\n");
     lcdClear(lcd);
     lcdPuts(lcd, "SUCCESS!");
-    digitalWrite(gpio, redLED, ON);
-    blinkN(gpio, greenLED, 3);
+    delay(3000);
+    // digitalWrite(gpio, redLED, ON);
+    // blinkN(gpio, greenLED, seqlen);
 
     // prints the number of attempts done on the lcd
     sprintf(buf, "Attempts: %d", attempts);
